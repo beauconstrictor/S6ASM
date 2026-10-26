@@ -17,14 +17,18 @@ done:
     subleq z z halt
   .endmacro
 
-start:
-  clear_z
-  ; negate a and put it in z
-  subleq a z after_first_negate
-after_first_negate:
-  ; negate z (so positive a) and put it in serial
-  subleq z seri halt
+  .macro mov a b
+    subleq z z cleared
+cleared:
+    subleq a z negated
+negated:
+    subleq z b done
 done:
+  .endmacro
+
+start:
+  mov a seri
+  mov a seri
   halt
 
   ; constants
