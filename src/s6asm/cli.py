@@ -176,7 +176,7 @@ def generate_immediates() -> Iterator[Token]:
 
         yield Token(f"  .byte {i}")
 
-def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[Token]:
+def expand_macros(source: str, macros: dict[str, Macro]|None=None, allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
     current_macro = None
 
@@ -211,7 +211,9 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[T
             stdlib = ident[0] == "<"
             path = ident[1:-1]
 
-            if stdlib:
+            if stdlib and not allow_stdlib:
+                raise AsmIncludeError("cannot include <stdlib> outside of the root file")
+            elif stdlib:
                 if path == "stdlib": immediates = True
                 file = files("s6asm").joinpath("stdlib", path + ".s")
             else:
@@ -219,7 +221,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[T
 
             if not file.is_file():
                 raise AsmIncludeError(f"file '{file}' could not be found")
-            yield from expand_macros(file.read_text(encoding="utf-8"), macros)
+            yield from expand_macros(file.read_text(encoding="utf-8"), macros, allow_stdlib=False)
 
         # part of a macro definition
         elif current_macro:
