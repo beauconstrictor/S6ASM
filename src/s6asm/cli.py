@@ -46,7 +46,7 @@ class Token:
         if not line[0].isspace():
             self.label = words.pop(0)
             if not self.label.endswith(":"):
-                raise AsmSyntaxError("expected ':' after label")
+                raise AsmSyntaxError(f"expected ':' after label in {line!r}")
             self.label = self.label[:-1]
             if len(words) == 0:
                 return
@@ -146,9 +146,40 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
         else:
             yield subtok
 
-def expand_macros(source: str) -> Iterator[Token]:
-    macros = {}
+def is_printable_ascii(c: int) -> bool:
+    return 32 <= c <= 126
+
+def generate_immediates() -> Iterator[Token]:
+    labels = set()
+
+    for i in range(0x100):
+        if is_printable_ascii(i) and chr(i) not in (" ", ";"):
+            l = f"#'{chr(i)}':"
+            if l in labels: continue
+            labels.add(l)
+            yield Token(l)
+
+        for prefix, max_width in (("x", 4), ("b", 8)):
+            for w in range(1, max_width + 1):
+                l = f"#0{prefix}{i:0{w}{prefix}}:"
+                if l in labels:
+                    continue
+                labels.add(l)
+                yield Token(l)
+
+        for w in range(1,6):
+            l = f"#{i:0{w}d}:"
+            if l in labels: continue
+            labels.add(l)
+            yield Token(l)
+
+        yield Token(f"  .byte {i}")
+
+def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[Token]:
+    if macros is None: macros = {}
     current_macro = None
+
+    immediates = False
 
     for tok in tokenise(source):
         if tok.directive == "macro":
@@ -180,13 +211,14 @@ def expand_macros(source: str) -> Iterator[Token]:
             path = ident[1:-1]
 
             if stdlib:
-                file = files("s6asm").joinpath("stdlib", path)
+                if path == "stdlib": immediates = True
+                file = files("s6asm").joinpath("stdlib", path + ".s")
             else:
                 file = Path(path)
 
             if not file.is_file():
                 raise AsmIncludeError(f"file '{file}' could not be found")
-            yield from expand_macros(file.read_text(encoding="utf-8"))
+            yield from expand_macros(file.read_text(encoding="utf-8"), macros)
 
         if current_macro:
             current_macro.tokens.append(tok)
@@ -201,6 +233,9 @@ def expand_macros(source: str) -> Iterator[Token]:
 
     if current_macro is not None:
         raise AsmSyntaxError("macro definition is unterminated")
+
+    if immediates:
+        yield from generate_immediates()
 
 def evaluate(s: str, labels: dict[str, int]|None) -> int:
     if len(s) == 3 and s[0] == "'" and s[-1] == "'":
