@@ -8,3 +8,4 @@ src/s6asm.egg-info/SOURCES.txt
 src/s6asm.egg-info/dependency_links.txt
 src/s6asm.egg-info/entry_points.txt
 src/s6asm.egg-info/top_level.txt
+src/s6asm/stdlib/stdlib.s

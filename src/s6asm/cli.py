@@ -4,13 +4,12 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Iterator, Iterable
 from importlib.resources import files
+from importlib.metadata import version
 
 # TODO: expressions with operators
 # TODO: line numbers in error messages!
 # TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
-
-VERSION = "0.1.0"
 
 ESCAPE_SEQUENCES = {
         "s": " ",
@@ -359,7 +358,7 @@ def main() -> None:
     mode.add_argument("-m", "--expand-macros", action="store_true")
     mode.add_argument("-a", "--assemble", default=True, action="store_true")
     mode.add_argument("-v", "--version", action="version",
-                      version=f"%(prog)s {VERSION}")
+                      version=f"%(prog)s {version('s6asm')}")
 
     args = parser.parse_args()
 

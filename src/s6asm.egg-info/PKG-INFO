@@ -1,5 +1,5 @@
 Metadata-Version: 2.4
 Name: s6asm
-Version: 0.1.0
+Version: 0.2.0
 Summary: assembler for the SUBLEQ-6
 Requires-Python: >=3.10
