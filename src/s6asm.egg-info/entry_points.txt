@@ -1,0 +1,2 @@
+[console_scripts]
+s6asm = s6asm.cli:main

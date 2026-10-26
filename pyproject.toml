@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s6asm"
+version = "0.1.0"
+description = "assembler for the SUBLEQ-6"
+requires-python = ">=3.10"
+
+[project.scripts]
+s6asm = "s6asm.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# TODO: future me!
+s6asm = ["stdlib/*.s"]

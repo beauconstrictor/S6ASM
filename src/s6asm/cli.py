@@ -1,9 +1,8 @@
 import sys
 import argparse
 from dataclasses import dataclass
-from typing import Iterator, Iterable, Generator
+from typing import Iterator, Iterable
 
-# TODO: recursive macro expansion
 # TODO: expressions with operators
 # TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
@@ -20,6 +19,7 @@ class AsmError(Exception): ...
 class AsmSyntaxError(AsmError): ...
 class AsmOriginError(AsmError): ...
 class AsmRecursionError(AsmError): ...
+class AsmWordWidthError(AsmError): ...
 
 # [label:] [(macro|.directive) [operands]...|subleq a b [c]]
 class Token:
@@ -100,7 +100,7 @@ class Macro:
 
 macro_invocation_idx = 0
 
-def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Generator[Token, None, int]:
+def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]:
     global macro_invocation_idx
 
     try:
@@ -204,6 +204,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     for tok in tokens:
         if tok.label:
+            if tok.label in labels:
+                raise AsmSyntaxError(f"redefinition of label: {tok.label}")
             labels[tok.label] = pc
 
         if tok.a is not None:
@@ -261,7 +263,10 @@ def assemble(source: str) -> bytearray:
                 raise AsmSyntaxError("expected argument in byte directive")
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in byte directive")
-            binary.append(evaluate(tok.operands[0], labels))
+            try:
+                binary.append(evaluate(tok.operands[0], labels))
+            except ValueError:
+                raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)")
         elif tok.directive == "word":
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected argument in word directive")
