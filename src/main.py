@@ -167,14 +167,14 @@ def expand_macros(source: str) -> Iterator[Token]:
             current_macro = None
             continue
 
-        if tok.macro is not None:
+        if current_macro:
+            current_macro.tokens.append(tok)
+            if tok.label: current_macro.labels.add(tok.label)
+        elif tok.macro is not None:
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
                 raise AsmRecursionError("macro recursion too deep")
-        elif current_macro:
-            current_macro.tokens.append(tok)
-            if tok.label: current_macro.labels.add(tok.label)
         else:
             yield tok
 
