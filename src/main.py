@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Iterator, Iterable
 
 # TODO: recursive macro expansion
-# TODO: semicolon in character literals
+# TODO: expressions with operators
+# TODO: semicolon and space in character literals
 
 VERSION = "0.1.0"
 
@@ -94,6 +95,50 @@ class Macro:
     labels: set[str]
     parameters: list[str]
 
+def expand_single_macro(tok: Token, macros: dict[str, Macro], macro_invocation_idx: int) -> tuple[Iterator[Token], int]:
+    try:
+        macro = macros[tok.macro]
+    except KeyError:
+        raise AsmSyntaxError(f"undefined macro: {tok.macro}")
+
+    if len(tok.operands) != len(macro.parameters):
+        raise AsmSyntaxError(f"incorrect macro argument count")
+
+    suffix = f"___macro{macro_invocation_idx}"
+    macros_called = 1
+
+    for subtok in macro.tokens:
+        subtok = subtok.duplicate()
+
+        # macro local labels
+        if subtok.label: subtok.label += suffix
+        for i, o in enumerate(subtok.operands):
+            if o in macro.labels:
+                subtok.operands[i] += suffix
+        if subtok.a in macro.labels: subtok.a += suffix
+        if subtok.b in macro.labels: subtok.b += suffix
+        if subtok.c in macro.labels: subtok.c += suffix
+
+        # macro parameters
+        for i, o in enumerate(subtok.operands):
+            if o in macro.parameters:
+                value = tok.operands[macro.parameters.index(o)]
+                subtok.operands[i] = value
+        if subtok.a in macro.parameters:
+            subtok.a = tok.operands[macro.parameters.index(subtok.a)]
+        if subtok.b in macro.parameters:
+            subtok.b = tok.operands[macro.parameters.index(subtok.b)]
+        if subtok.c in macro.parameters:
+            subtok.c = tok.operands[macro.parameters.index(subtok.c)]
+
+        if subtok.macro is not None:
+            yield from expand_single_macro(subtok, macros, macro_invocation_idx+1)
+            macros_called += 1
+
+        yield subtok
+
+    return macro_invocation_idx + macros_called
+
 def expand_macros(source: str) -> Iterator[Token]:
     macros = {}
     current_macro = None
@@ -120,46 +165,13 @@ def expand_macros(source: str) -> Iterator[Token]:
             continue
 
         if tok.macro is not None:
+            toks = expand_single_macro(tok, macros, macro_invocation_idx)
             try:
-                macro = macros[tok.macro]
-            except KeyError:
-                raise AsmSyntaxError(f"undefined macro: {tok.macro}")
-
-            if len(tok.operands) != len(macro.parameters):
-                raise AsmSyntaxError(f"incorrect macro argument count")
-
-            suffix = f"___macro{macro_invocation_idx}"
-            macro_invocation_idx += 1
-
-            for subtok in macro.tokens:
-                subtok = subtok.duplicate()
-
-                # macro local labels
-                if subtok.label: subtok.label += suffix
-                for i, o in enumerate(subtok.operands):
-                    if o in macro.labels:
-                        subtok.operands[i] += suffix
-                if subtok.a in macro.labels: subtok.a += suffix
-                if subtok.b in macro.labels: subtok.b += suffix
-                if subtok.c in macro.labels: subtok.c += suffix
-
-                # macro parameters
-                for i, o in enumerate(subtok.operands):
-                    if o in macro.parameters:
-                        value = tok.operands[macro.parameters.index(o)]
-                        subtok.operands[i] = value
-                if subtok.a in macro.parameters:
-                    subtok.a = tok.operands[macro.parameters.index(subtok.a)]
-                if subtok.b in macro.parameters:
-                    subtok.b = tok.operands[macro.parameters.index(subtok.b)]
-                if subtok.c in macro.parameters:
-                    subtok.c = tok.operands[macro.parameters.index(subtok.c)]
-
-                yield subtok
-
-            continue
-
-        if current_macro:
+                while True:
+                    yield next(toks)
+            except StopIteration as e:
+                macro_invocation_idx = e.value
+        elif current_macro:
             current_macro.tokens.append(tok)
             if tok.label: current_macro.labels.add(tok.label)
         else:
