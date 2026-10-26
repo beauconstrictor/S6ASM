@@ -1,7 +1,9 @@
 import sys
 import argparse
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Iterator, Iterable
+from importlib.resources import files
 
 # TODO: expressions with operators
 # TODO: support labels attached to macro calls
@@ -18,6 +20,7 @@ ESCAPE_SEQUENCES = {
 class AsmError(Exception): ...
 class AsmSyntaxError(AsmError): ...
 class AsmOriginError(AsmError): ...
+class AsmIncludeError(AsmError): ...
 class AsmRecursionError(AsmError): ...
 class AsmWordWidthError(AsmError): ...
 
@@ -166,6 +169,24 @@ def expand_macros(source: str) -> Iterator[Token]:
             macros[macro.name] = macro
             current_macro = None
             continue
+        elif tok.directive == "include":
+            if len(tok.operands) != 1:
+                raise AsmSyntaxError("incorrect argument count in include directive")
+
+            ident = tok.operands[0]
+            if len(ident) < 2 or (ident[0] not in ('"', "'") and ident[0] != "<" and ident[-1] != ">"):
+                raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes")
+            stdlib = ident[0] == "<"
+            path = ident[1:-1]
+
+            if stdlib:
+                file = files("s6asm").joinpath("stdlib", path)
+            else:
+                file = Path(path)
+
+            if not file.is_file():
+                raise AsmIncludeError(f"file '{file}' could not be found")
+            yield from expand_macros(file.read_text(encoding="utf-8"))
 
         if current_macro:
             current_macro.tokens.append(tok)

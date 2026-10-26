@@ -1,5 +1,7 @@
   .org 0x8000
 
+  .include <base.s>
+
   ; constants
   .const seri 0xffff
   .const sero 0xfffe
