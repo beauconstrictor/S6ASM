@@ -1,12 +1,17 @@
   .include <stdlib>
 
-  .const c 0x0000
-  .const i 0x0001
+  .const l 0x0000
+  .const u 0x0001
+  .const i 0x0002
 
+  mov #'A' u
+  mov #'a' l
   mov #26  i
-  mov #'A' c
-loop:
-  out c
-  inc c
-  djnz i loop
-  jmp halt
+alphabet:
+  out u
+  inc u
+  out l
+  inc l
+  out #0x20
+  djnz i alphabet
+  halt

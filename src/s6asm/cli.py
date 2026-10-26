@@ -6,6 +6,7 @@ from typing import Iterator, Iterable
 from importlib.resources import files
 
 # TODO: expressions with operators
+# TODO: line numbers in error messages!
 # TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
 
@@ -159,7 +160,7 @@ def generate_immediates() -> Iterator[Token]:
             labels.add(l)
             yield Token(l)
 
-        for prefix, max_width in (("x", 4), ("b", 8)):
+        for prefix, max_width in (("x", 2), ("b", 8)):
             for w in range(1, max_width + 1):
                 l = f"#0{prefix}{i:0{w}{prefix}}:"
                 if l in labels:
@@ -192,14 +193,14 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[T
             if tok.label:
                 current_macro.tokens.append(Token(f"{tok.label}:"))
                 current_macro.labels.add(tok.label)
-            continue
+
         elif tok.directive == "endmacro":
             if not current_macro:
                 raise AsmSyntaxError("endmacro directive outside of a macro definition")
             macro = current_macro
             macros[macro.name] = macro
             current_macro = None
-            continue
+
         elif tok.directive == "include":
             if len(tok.operands) != 1:
                 raise AsmSyntaxError("incorrect argument count in include directive")
@@ -220,14 +221,21 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None) -> Iterator[T
                 raise AsmIncludeError(f"file '{file}' could not be found")
             yield from expand_macros(file.read_text(encoding="utf-8"), macros)
 
-        if current_macro:
+        # part of a macro definition
+        elif current_macro:
             current_macro.tokens.append(tok)
             if tok.label: current_macro.labels.add(tok.label)
+
+        # a macro call
         elif tok.macro is not None:
+            if tok.label:
+                yield Token(f"{tok.label}:")
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
                 raise AsmRecursionError("macro recursion too deep")
+
+        # instruction/label/directive
         else:
             yield tok
 
