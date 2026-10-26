@@ -92,7 +92,7 @@ The assembler has two main namespaces: one for macros, and one for labels and co
   halt     ; the halt macro jumps to that address for you.
 ```
 
-The labels & constants namespace contains a map of names to 16-bit addresses, which are ultimately passed as operands to `subleq` instructions. You can create one of these directly, as a constant like this:
+The labels & constants namespace contains a map of names to 16-bit numbers (almost always addresses, although not always, if they are passed to directives, for example), which are ultimately passed as operands to `subleq` instructions. You can create one of these directly, as a constant like this:
 
 ```
   .const something 5
