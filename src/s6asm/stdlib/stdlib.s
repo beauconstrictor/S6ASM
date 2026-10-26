@@ -26,8 +26,13 @@ done:
     add #1 x
   .endmacro
 
+  .macro sub x y
+    subleq x y done
+done:
+  .endmacro
+
   .macro dec x
-    add #0xff x
+    sub #1 x
   .endmacro
 
   ; stores in y

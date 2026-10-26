@@ -88,8 +88,8 @@ Some examples:
 The assembler has two main namespaces: one for macros, and one for labels and constants. These namespaces are entirely separate, meaning you can have two different things in both namespaces with the same name. The standard library uses this to create constants referencing memory addresses, and macros that use those addresses:
 
 ```
-  jmp halt ; jumping to the address 'halt' stops the machine.
-  halt     ; the halt macro jumps to that address for you.
+  mov #'A' out ; writing something to out prints it
+  out #'A'     ; the out macro does that for you
 ```
 
 The labels & constants namespace contains a map of names to 16-bit numbers (almost always addresses, although not always, if they are passed to directives, for example), which are ultimately passed as operands to `subleq` instructions. You can create one of these directly, as a constant like this:
@@ -111,6 +111,24 @@ hi:
   .byte 'i'
   .byte '\0'
 ```
+
+The macros namespace contains a map of names to a sequence of lines of code, as well as a list of parameters. This allows you to call a macro and pass it some arguments, wherever the original macro definition used it's parameters:
+
+```
+  .macro sub x y
+    subleq x y done
+done:
+  .endmacro
+
+  sub #3 a
+
+  ; will expand to:
+
+  subleq #3 a done
+done:
+```
+
+It is worth nothing that labls are macro-local. This means that you can reuse the same label name in multiple macros, and use a single macro more than once. None of these will cause a name collision. This is because, under the hood, the assembler actually changes the name of labels when expanding macros to ensure that they stay unique.
 
 ## The Standard Library
 
