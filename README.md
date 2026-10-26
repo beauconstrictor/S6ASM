@@ -78,7 +78,7 @@ Immedates are a feature of the standard library, not a part of the syntax itself
 Some examples:
 
 ```
-  mov #$0a x
+  mov #0x0a x
   out #'A'
   add #1 y
 ```
