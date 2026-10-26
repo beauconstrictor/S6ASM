@@ -26,6 +26,7 @@ done:
     add #1 x
   .endmacro
 
+  ; stores in y
   .macro sub x y
     subleq x y done
 done:
