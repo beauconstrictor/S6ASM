@@ -8,9 +8,15 @@
   ; variables
   .const z    0x0000
 
-  .macro clear_z
-    subleq z z done
+  .macro clear x
+    subleq x x done
 done:
+  .endmacro
+
+  .macro clear_z
+    clear z
+test:
+    subleq z z test
   .endmacro
 
   .macro halt
@@ -27,6 +33,7 @@ done:
   .endmacro
 
 start:
+  clear z
   mov a seri
   mov a seri
   halt

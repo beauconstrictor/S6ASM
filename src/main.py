@@ -1,10 +1,11 @@
 import sys
 import argparse
 from dataclasses import dataclass
-from typing import Iterator, Iterable
+from typing import Iterator, Iterable, Generator
 
 # TODO: recursive macro expansion
 # TODO: expressions with operators
+# TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
 
 VERSION = "0.1.0"
@@ -18,6 +19,7 @@ ESCAPE_SEQUENCES = {
 class AsmError(Exception): ...
 class AsmSyntaxError(AsmError): ...
 class AsmOriginError(AsmError): ...
+class AsmRecursionError(AsmError): ...
 
 # [label:] [(macro|.directive) [operands]...|subleq a b [c]]
 class Token:
@@ -75,11 +77,11 @@ class Token:
 
     def __repr__(self) -> str:
         s = ""
-        if self.label: s += f"{self.label}: "
+        if self.label is not None: s += f"{self.label}: "
         else: s += "  "
-        if self.directive: s += f".{self.directive} "
-        elif self.macro: s += f"{self.macro} "
-        elif self.a: s += f"subleq {self.a} {self.b} {self.c}"
+        if self.directive is not None: s += f".{self.directive} "
+        elif self.macro is not None: s += f"{self.macro} "
+        elif self.a is not None: s += f"subleq {self.a} {self.b} {self.c}"
         if self.operands: s += " ".join(self.operands)
         return s
 
@@ -95,7 +97,12 @@ class Macro:
     labels: set[str]
     parameters: list[str]
 
-def expand_single_macro(tok: Token, macros: dict[str, Macro], macro_invocation_idx: int) -> tuple[Iterator[Token], int]:
+
+macro_invocation_idx = 0
+
+def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Generator[Token, None, int]:
+    global macro_invocation_idx
+
     try:
         macro = macros[tok.macro]
     except KeyError:
@@ -105,7 +112,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro], macro_invocation_i
         raise AsmSyntaxError(f"incorrect macro argument count")
 
     suffix = f"___macro{macro_invocation_idx}"
-    macros_called = 1
+    macro_invocation_idx += 1
 
     for subtok in macro.tokens:
         subtok = subtok.duplicate()
@@ -132,17 +139,13 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro], macro_invocation_i
             subtok.c = tok.operands[macro.parameters.index(subtok.c)]
 
         if subtok.macro is not None:
-            yield from expand_single_macro(subtok, macros, macro_invocation_idx+1)
-            macros_called += 1
-
-        yield subtok
-
-    return macro_invocation_idx + macros_called
+            yield from expand_single_macro(subtok, macros)
+        else:
+            yield subtok
 
 def expand_macros(source: str) -> Iterator[Token]:
     macros = {}
     current_macro = None
-    macro_invocation_idx = 0
 
     for tok in tokenise(source):
         if tok.directive == "macro":
@@ -165,12 +168,10 @@ def expand_macros(source: str) -> Iterator[Token]:
             continue
 
         if tok.macro is not None:
-            toks = expand_single_macro(tok, macros, macro_invocation_idx)
             try:
-                while True:
-                    yield next(toks)
-            except StopIteration as e:
-                macro_invocation_idx = e.value
+                yield from expand_single_macro(tok, macros)
+            except RecursionError:
+                raise AsmRecursionError("macro recursion too deep")
         elif current_macro:
             current_macro.tokens.append(tok)
             if tok.label: current_macro.labels.add(tok.label)
