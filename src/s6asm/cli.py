@@ -411,7 +411,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                 if path == "stdlib": immediates = True
                 file = files("s6asm").joinpath("stdlib", path + ".s")
             else:
-                file = Path(tok.path) / Path(path)
+                file = Path(tok.path).parent / Path(path)
             
 
             if not file.is_file():
