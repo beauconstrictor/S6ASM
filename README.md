@@ -1,6 +1,6 @@
 # S6ASM
 
-`s6asm` is an assembler for the SUBLEQ-6, a computer architecture that uses the [SUBLEQ ISA](https://esolangs.org/wiki/Subleq); essentially an ISA that uses only a single instruction (meaning the actual opcode is implied, leaving only three 16-bit operands - hence SUBLEQ-6, after those 6-byte fixed width instructions).
+`s6asm` is an assembler (and integrated emulator) for the [Ozpex S6](https://github.com/beauconstrictor/s6emu), a computer architecture built around a single 6-byte instruction, called `subleq`.
 
 This assembler is a very simple macro assembler that compiles to raw binary output that you can load into an [emulator](https://beauconstrictor/s6emu). The assembler features a 'standard library' of sorts, which includes a large array of macros to make developing for this otherwise very esoteric architecture more manageable.
 
@@ -49,7 +49,7 @@ S6ASM also includes an integrated S6 emulator, so you can run an assembly progra
 s6asm -e test.s
 ```
 
-This emulator has considerably worse performance than `s6emu`, so it is recommended to switch to it once your programs grow.
+This emulator has considerably worse performance than `s6emu`, so it is recommended to switch to it once your program grows.
 
 ## Syntax
 
@@ -60,7 +60,7 @@ label: subleq a b c
   subleq a b c
 ```
 
-Then, instructions are either preceeded by a `.`, in which case they are a *directive*, which signals something to the assembler itself, or not. In that case, the instruction can be `subleq`, or a macro (optionally followed by some number of operands), which will be expanded to a series of `subleqs`.
+Then, instructions are either preceeded by a `.`, in which case they are a *directive*, which signals something to the assembler itself, or not. In that case, the instruction can be `subleq`, or a macro (optionally followed by some number of operands), which will be expanded to a series of `subleq`s.
 
 Comments are marked with a `;`. Anything after a semicolon, assuming that semicolon is not inside quotes or parentheses will be ignored by the assembler.
 
@@ -221,7 +221,7 @@ The assembler transforms the code into a binary in several distinct steps.:
 2. Preprocessing - Expands macros and adds the contents of included files.
 3. Linking - The assembler decided where in memory instructions and data will be placed.
 4. Assembly - The assembler produces a final binary image.
-5. (Optionally) Emulation - The assembler loads the binary into a simulated S6 and executes it. :a
+5. (Optionally) Emulation - The assembler loads the binary into a simulated S6 and executes it.
 
 Using command line flags, you can tell the assembler to stop at any particular stage, in which case it will output an intermediate representation.
 
