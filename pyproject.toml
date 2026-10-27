@@ -17,3 +17,9 @@ where = ["src"]
 [tool.setuptools.package-data]
 # TODO: future me!
 s6asm = ["stdlib/*.s"]
+
+[tool.ruff.lint]
+ignore = ["I"]
+
+[tool.basedpyright]
+reportUnusedCallResult = "none"

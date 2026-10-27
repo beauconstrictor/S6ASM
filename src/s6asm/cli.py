@@ -2,9 +2,10 @@ import sys
 import argparse
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Iterator, Iterable
+from typing import override, Self
 from importlib.resources import files
 from importlib.metadata import version
+from collections.abc import Iterator, Iterable
 
 # TODO: expressions with operators
 # TODO: support labels attached to macro calls
@@ -34,18 +35,18 @@ class Token:
         if ";" in line: line = line.split(";")[0]
         words = line.split()
 
-        self.path = path
-        self.lineno = lineno
+        self.path:   str = path
+        self.lineno: int = lineno
 
-        self.label     = None
+        self.label:     str|None = None
 
-        self.a         = None
-        self.b         = None
-        self.c         = None
+        self.a:         str|None = None
+        self.b:         str|None = None
+        self.c:         str|None = None
 
-        self.macro     = None
-        self.directive = None
-        self.operands = []
+        self.macro:     str|None = None
+        self.directive: str|None = None
+        self.operands: list[str] = []
 
         if len(words) == 0:
             return
@@ -74,19 +75,20 @@ class Token:
             self.macro = words[0]
             self.operands = words[1:]
 
-    def duplicate(self) -> Token:
-        tok = Token("")
-        tok.label = self.label
-        tok.a = self.a
-        tok.b = self.b
-        tok.c = self.c
-        tok.macro = self.macro
+    def duplicate(self) -> Self:
+        tok           = type(self)("")
+        tok.label     = self.label
+        tok.a         = self.a
+        tok.b         = self.b
+        tok.c         = self.c
+        tok.macro     = self.macro
         tok.directive = self.directive
-        tok.operands = [*self.operands]
-        tok.path = self.path
-        tok.lineno = self.lineno
+        tok.operands  = [*self.operands]
+        tok.path      = self.path
+        tok.lineno    = self.lineno
         return tok
 
+    @override
     def __repr__(self) -> str:
         s = ""
         if self.label is not None: s += f"{self.label}: "
@@ -115,13 +117,16 @@ macro_invocation_idx = 0
 def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]:
     global macro_invocation_idx
 
+    if not tok.macro:
+        raise ValueError("not a macro token")
+
     try:
         macro = macros[tok.macro]
     except KeyError:
         raise AsmSyntaxError(f"undefined macro: {tok.macro}", tok)
 
     if len(tok.operands) != len(macro.parameters):
-        raise AsmSyntaxError(f"incorrect macro argument count", tok)
+        raise AsmSyntaxError("incorrect macro argument count", tok)
 
     suffix = f"___macro{macro_invocation_idx}"
     macro_invocation_idx += 1
@@ -161,7 +166,7 @@ def is_printable_ascii(c: int) -> bool:
     return 32 <= c <= 126
 
 def generate_immediates() -> Iterator[Token]:
-    labels = set()
+    labels: set[str] = set()
 
     for i in range(0x100):
         if is_printable_ascii(i) and chr(i) not in (" ", ";"):
@@ -332,7 +337,7 @@ def assemble(source: str) -> bytearray:
         if initial_origin is None:
             raise AsmOriginError(f"{tok.path}: file must start with an org directive")
 
-        if tok.a is not None:
+        if tok.a is not None and tok.b is not None and tok.c is not None:
             extend_with_word(binary, evaluate(tok.a, labels, tok))
             extend_with_word(binary, evaluate(tok.b, labels, tok))
             extend_with_word(binary, evaluate(tok.c, labels, tok))
@@ -343,7 +348,7 @@ def assemble(source: str) -> bytearray:
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in byte directive", tok)
             try:
-                binary.append(evaluate(tok.operands[0], included, tok))
+                binary.append(evaluate(tok.operands[0], labels, tok))
             except ValueError:
                 raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)", tok)
         elif tok.directive == "word":
@@ -367,30 +372,34 @@ def main() -> None:
     parser = argparse.ArgumentParser(
             prog="s6asm")
 
-    parser.add_argument("file", type=argparse.FileType("r"))
+    parser.add_argument("file", type=Path)
+
+    parser.add_argument("-v", "--version", action="version",
+                      version=f"%(prog)s {version('s6asm')}")
 
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("-n", "--normalise", action="store_true")
     mode.add_argument("-m", "--expand-macros", action="store_true")
     mode.add_argument("-a", "--assemble", default=True, action="store_true")
-    mode.add_argument("-v", "--version", action="version",
-                      version=f"%(prog)s {version('s6asm')}")
 
     args = parser.parse_args()
-    file = args.file.read()
-    path = args.file.name
+    file = args.file.read_text(encoding="utf-8")
+    path = str(args.file)
+
 
     try:
         if args.normalise:
             for tok in tokenise(file, path):
                 print(tok)
         elif args.expand_macros:
-            for tok in expand_macros(file, path):
+            for tok in expand_macros(file, path=path):
                 print(tok)
         elif args.assemble:
             sys.stdout.buffer.write(assemble(file))
+        else:
+            print(args)
     except AsmError as e:
-        parser.error(e)
+        parser.error(str(e))
 
 if __name__ == "__main__":
     main()
