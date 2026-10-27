@@ -8,6 +8,13 @@
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
   .const z    0x7f00
 
+  .const ijp     0x7f01
+  .const _ijp_0  0x7f02
+  .const _ijp_1  0x7f03
+  .const _ijp_2  0x7f04
+  .const _ijp_hi 0x7f05
+  .const _ijp_lo 0x7f06
+
   .macro clear x
     subleq x x done
 done:
@@ -50,6 +57,13 @@ done:
     subleq z z x
   .endmacro
 
+  ; indirect jump to 0xHILO
+  .macro ijp hi lo
+    mov hi _ijp_hi
+    mov lo _ijp_lo
+    jmp _ijp
+  .endmacro
+
   .macro halt
     jmp halt
   .endmacro
@@ -62,3 +76,11 @@ done:
   .endmacro
 
   .org 0x8000 
+
+_start:
+  ; a jmp instruction is effectively 0x0000 0x0000 0xADDR
+  ; so we just encode that here in memory, for indirects
+  clear ijp
+  clear _ijp_0
+  clear _ijp_1
+  clear _ijp_2

@@ -1,20 +1,14 @@
 import sys
 import argparse
+from enum import Enum
 from pathlib import Path
 from dataclasses import dataclass
-from typing import override, Self
 from importlib.resources import files
 from importlib.metadata import version
-from collections.abc import Iterator, Iterable
+from typing import override, Self, final
+from collections.abc import Iterator, Iterable, Sequence
 
-# TODO: expressions with operators
-# TODO: semicolon and space in character literals
-
-ESCAPE_SEQUENCES = {
-        "s": " ",
-        "e": "\033",
-        "n": "\n",
-        "sc": ";"}
+# TODO: infix expressions with shunting-yard (requires above)
 
 class AsmError(Exception):
     def __init__(self, message: str, token: Token|None=None) -> None:
@@ -28,24 +22,47 @@ class AsmIncludeError(AsmError): ...
 class AsmRecursionError(AsmError): ...
 class AsmWordWidthError(AsmError): ...
 
-# [label:] [(macro|.directive) [operands]...|subleq a b [c]]
+# [label:] [(macro|.directive) [operands]...|subleq a b c]
 class Token:
     def __init__(self, line: str, path: str="<unknown>", lineno: int=-1) -> None:
-        if ";" in line: line = line.split(";")[0]
-        words = line.split()
+        acc = ""
+        words: list[str] = []
+        in_paren = False
+        in_quote = False
+
+        for c in line + " ":
+            if c == "(" and not in_paren and not in_quote:
+                in_paren = True
+                continue
+            if c == ")" and in_paren and not in_quote:
+                in_paren = False
+                continue
+            if c == "'":
+                in_quote = not in_quote
+            if c == ";" and not in_quote and not in_paren:
+                break
+            if c.isspace() and not in_quote and not in_paren:
+                if acc:
+                    words.append(acc)
+                acc = ""
+                continue
+
+            acc += c
+
+        words = [w.strip() for w in words]
 
         self.path:   str = path
         self.lineno: int = lineno
 
         self.label:     str|None = None
 
-        self.a:         str|None = None
-        self.b:         str|None = None
-        self.c:         str|None = None
+        self.a:         Expression|None = None
+        self.b:         Expression|None = None
+        self.c:         Expression|None = None
 
         self.macro:     str|None = None
         self.directive: str|None = None
-        self.operands: list[str] = []
+        self.operands: Sequence[Expression|str] = []
 
         if len(words) == 0:
             return
@@ -65,14 +82,14 @@ class Token:
             if len(words) < 4:
                 raise AsmSyntaxError("expected 3 operands")
             elif len(words) == 4:
-                self.a = words[1]
-                self.b = words[2]
-                self.c = words[3]
+                self.a = Expression(words[1])
+                self.b = Expression(words[2])
+                self.c = Expression(words[3])
             else:
                 raise AsmSyntaxError("unexpected operands")
         else:
             self.macro = words[0]
-            self.operands = words[1:]
+            self.operands = [Expression(w) for w in words[1:]]
 
     def duplicate(self) -> Self:
         tok           = type(self)("")
@@ -92,16 +109,127 @@ class Token:
         s = ""
         if self.label is not None: s += f"{self.label}: "
         else: s += "  "
-        if self.directive is not None: s += f".{self.directive} "
-        elif self.macro is not None: s += f"{self.macro} "
-        elif self.a is not None: s += f"subleq {self.a} {self.b} {self.c}"
-        if self.operands: s += " ".join(self.operands)
+
+        if self.directive is not None:
+            s += f".{self.directive} "
+
+        elif self.macro is not None:
+            s += f"{self.macro} "
+
+        elif self.a is not None:
+            s += f"subleq {self.a!r} {self.b!r} {self.c!r}"
+
+        if self.operands:
+            for o in self.operands:
+                s += f"{o} "
+
+        s += f" ; [{self.path}:{self.lineno}]"
         return s
+
+class Literal:
+    def __init__(self, text: str) -> None:
+        self.text: str = text
+
+    def evaluate(self, labels: dict[str, int]|None=None, token: Token|None=None) -> int:
+        s = self.text
+
+        if len(s) == 3 and s[0] == "'" and s[-1] == "'":
+            return ord(s[1])
+
+        try:
+            return int(s, 0)
+        except ValueError:
+            if labels is not None and labels.get(s) is not None:
+                return labels[s]
+
+        raise AsmSyntaxError(f"unsupported expression form: '{s}'", token)
+
+    def substitute(self, label: str, new_value: str) -> None:
+        if self.text != label: return
+        self.text = new_value
+
+    @override
+    def __str__(self) -> str:
+        return self.text
+
+@final
+class Operation(Enum):
+    ADD = "+"
+    SUB = "-"
+    MUL = "*"
+    DIV = "/"
+    LSR = ">>"
+    LSL = "<<"
+    XOR = "^"
+    MOD = "%"
+
+class Expression:
+    def __init__(self, text: str) -> None:
+        self.tokens: list[Literal|Operation] = []
+
+        for word in text.split():
+            if word in Operation:
+                self.tokens.append(Operation(word))
+            else:
+                self.tokens.append(Literal(word))
+
+    def evaluate(self, labels: dict[str, int]|None=None, token: Token|None=None) -> int:
+        stack: list[int] = []
+
+        for tok in self.tokens:
+            if isinstance(tok, Literal):
+                stack.append(tok.evaluate(labels, token))
+            else:
+                try:
+                    b = stack.pop()
+                    a = stack.pop()
+                except IndexError:
+                    raise AsmSyntaxError("expression underflows", token)
+                match tok:
+                    case Operation.ADD:
+                        stack.append(a + b)
+                    case Operation.SUB:
+                        stack.append(a - b)
+                    case Operation.MUL:
+                        stack.append(a * b)
+                    case Operation.DIV:
+                        stack.append(a // b)
+                    case Operation.LSR:
+                        stack.append(a >> b)
+                    case Operation.LSL:
+                        stack.append(a << b)
+                    case Operation.XOR:
+                        stack.append(a ^ b)
+                    case Operation.MOD:
+                        stack.append(a % b)
+
+        if len(stack) < 1:
+            raise AsmSyntaxError("expression is empty", token)
+        elif len(stack) > 1:
+            raise AsmSyntaxError("expression returns multiple many values", token)
+
+        return stack[0]
+
+    def substitute(self, label: str, new_value: str | Self) -> None:
+            for i, tok in enumerate(self.tokens):
+                if not isinstance(tok, Literal): continue
+                if isinstance(new_value, str):
+                    tok.substitute(label, new_value)
+                else:
+                    self.tokens[i:i+1] = new_value.tokens
+
+    @override
+    def __repr__(self) -> str:
+        return f"({' '.join(str(tok) for tok in self.tokens)}) "
 
 def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
     for i, l in enumerate(source.splitlines(), start=1):
         if not l.strip(): continue
         yield Token(l, path, i)
+
+def make_expr(s: str | Expression) -> Expression:
+    if isinstance(s, Expression): return s
+    return Expression(s)
 
 @dataclass
 class Macro:
@@ -137,24 +265,32 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
 
         # macro local labels
         if subtok.label: subtok.label += suffix
+
+        if subtok.directive:
+            raise AsmSyntaxError("cannot use directives inside macros", subtok)
+
         for i, o in enumerate(subtok.operands):
-            if o in macro.labels:
-                subtok.operands[i] += suffix
-        if subtok.a in macro.labels: subtok.a += suffix
-        if subtok.b in macro.labels: subtok.b += suffix
-        if subtok.c in macro.labels: subtok.c += suffix
+            for l in macro.labels:
+                if isinstance(o, str): continue
+                o.substitute(l, l + suffix)
+
+        for l in macro.labels:
+            for i in (subtok.a, subtok.b, subtok.c):
+                if i is None: continue
+                i.substitute(l, l + suffix)
 
         # macro parameters
         for i, o in enumerate(subtok.operands):
-            if o in macro.parameters:
-                value = tok.operands[macro.parameters.index(o)]
-                subtok.operands[i] = value
-        if subtok.a in macro.parameters:
-            subtok.a = tok.operands[macro.parameters.index(subtok.a)]
-        if subtok.b in macro.parameters:
-            subtok.b = tok.operands[macro.parameters.index(subtok.b)]
-        if subtok.c in macro.parameters:
-            subtok.c = tok.operands[macro.parameters.index(subtok.c)]
+            if isinstance(o, str): continue
+            for i2, p in enumerate(macro.parameters):
+                v = tok.operands[i2]
+                o.substitute(p, v)
+    
+
+        for i, p in enumerate(macro.parameters):
+            if subtok.a is not None: subtok.a.substitute(p, tok.operands[i])
+            if subtok.b is not None: subtok.b.substitute(p, tok.operands[i])
+            if subtok.c is not None: subtok.c.substitute(p, tok.operands[i])
 
         if subtok.macro is not None:
             yield from expand_single_macro(subtok, macros)
@@ -170,11 +306,11 @@ def generate_immediates() -> Iterator[Token]:
     def make_tok(l: str) -> Iterator[Token]:
         if l in labels: return
         labels.add(l)
-        yield Token(l, "<stdlib>", -1)
+        yield Token(l, "stdlib", -1)
 
     for i in range(0x100):
-        if is_printable_ascii(i) and chr(i) not in (" ", ";"):
-            l = f"#'{chr(i)}':"
+        if is_printable_ascii(i) and chr(i) not in ("'"):
+            l = f"#'{i}':"
             yield from make_tok(l)
 
         for prefix, max_width in (("x", 2), ("b", 8)):
@@ -202,8 +338,14 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected macro name", tok)
 
+            operands: list[str] = []
             macro_definition = tok
-            current_macro = Macro([], tok.operands[0], set(), tok.operands[1:])
+            for o in tok.operands:
+                if isinstance(o, Expression):
+                    raise TypeError("pyright!!!")
+                operands.append(o)
+            current_macro = Macro([], operands[0], set(), operands[1:])
+
             if tok.label:
                 current_macro.tokens.append(Token(f"{tok.label}:", tok.path, tok.lineno))
                 current_macro.labels.add(tok.label)
@@ -221,6 +363,8 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                 raise AsmSyntaxError("incorrect argument count in include directive", tok)
 
             ident = tok.operands[0]
+            if isinstance(ident, Expression):
+                raise TypeError("stop wasting my time pyright")
             if len(ident) < 2 or (ident[0] not in ('"', "'") and ident[0] != "<" and ident[-1] != ">"):
                 raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
             stdlib = ident[0] == "<"
@@ -262,25 +406,9 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
     if immediates:
         yield from generate_immediates()
 
-def evaluate(s: str, labels: dict[str, int]|None, token: Token|None=None) -> int:
-    if len(s) == 3 and s[0] == "'" and s[-1] == "'":
-        return ord(s[1])
-    if len(s) > 3 and s[0] == "'" and s[1] == "\\" and s[-1] == "'":
-        try:
-            return ord(ESCAPE_SEQUENCES[s[2:-1]])
-        except KeyError:
-            raise AsmSyntaxError(f"invalid escape sequence: {s}", token)
-
-    try:
-        return int(s, 0)
-    except ValueError:
-        if labels is not None and labels.get(s) is not None:
-            return labels[s]
-
-    raise AsmSyntaxError(f"unsupported expression form: '{s}'", token)
 
 def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
-    labels = {}
+    labels: dict[str, int] = {}
     pc = 0
 
     for tok in tokens:
@@ -296,7 +424,9 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmSyntaxError("expected address in org directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected operands in org directive", tok)
-            pc = evaluate(tok.operands[0], None, tok)
+            if isinstance(tok.operands[0], Expression):
+                raise TypeError("ughh this isn't necessary pyright")
+            pc = Expression(tok.operands[0]).evaluate(labels, tok)
         elif tok.directive == "byte":
             pc += 1
         elif tok.directive == "word":
@@ -321,9 +451,11 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
             if tok.label:
                 raise AsmOriginError("cannot apply a label to an org directive", tok)
             addr   = len(binary)
+
             # we've already verified the right amount of arguments
             # during find_labels
-            target = evaluate(tok.operands[0], labels, tok)
+            target = make_expr(tok.operands[0]).evaluate(labels, tok)
+
             if initial_origin is None:
                 initial_origin = target
             else:
@@ -335,9 +467,9 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
             raise AsmOriginError(f"{tok.path}: file must start with an org directive")
 
         if tok.a is not None and tok.b is not None and tok.c is not None:
-            extend_with_word(binary, evaluate(tok.a, labels, tok))
-            extend_with_word(binary, evaluate(tok.b, labels, tok))
-            extend_with_word(binary, evaluate(tok.c, labels, tok))
+            extend_with_word(binary, tok.a.evaluate(labels, tok))
+            extend_with_word(binary, tok.b.evaluate(labels, tok))
+            extend_with_word(binary, tok.c.evaluate(labels, tok))
 
         elif tok.directive == "byte":
             if len(tok.operands) < 1:
@@ -345,7 +477,7 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in byte directive", tok)
             try:
-                binary.append(evaluate(tok.operands[0], labels, tok))
+                binary.append(make_expr(tok.operands[0]).evaluate(labels, tok))
             except ValueError:
                 raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)", tok)
         elif tok.directive == "word":
@@ -353,7 +485,7 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
                 raise AsmSyntaxError("expected argument in word directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in word directive", tok)
-            extend_with_word(binary, evaluate(tok.operands[0], labels, tok))
+            extend_with_word(binary, make_expr(tok.operands[0]).evaluate(labels, tok))
         elif tok.directive == "const":
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected variable name and value in const directive", tok)
@@ -361,7 +493,9 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
                 raise AsmSyntaxError("expected variable value in const directive", tok)
             elif len(tok.operands) > 2:
                 raise AsmSyntaxError("unexpected arguments in const directive", tok)
-            labels[tok.operands[0]] = evaluate(tok.operands[1], labels, tok)
+            if isinstance(tok.operands[0], Expression):
+                raise TypeError("this can't happen")
+            labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
     return binary
 
