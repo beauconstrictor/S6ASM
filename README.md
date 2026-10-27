@@ -28,7 +28,7 @@ You'll notice that there isn't a single `subleq` instruction in sight; this is b
 To assemble this program, assuming you have saved the sample program as 'test.s':
 
 ```
-s6asm < test.s > test.bin
+s6asm test.s > test.bin
 ```
 
 You can then load the binary into an S6 emulator. This is how you would do that in `s6emu`:
