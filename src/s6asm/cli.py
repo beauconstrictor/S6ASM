@@ -17,7 +17,12 @@ ESCAPE_SEQUENCES = {
         "n": "\n",
         "sc": ";"}
 
-class AsmError(Exception): ...
+class AsmError(Exception):
+    def __init__(self, message: str, token: Token|None=None) -> None:
+        if token:
+            super().__init__(f"{token.path}:{token.lineno}: {message}")
+        else:
+            super().__init__(message)
 class AsmSyntaxError(AsmError): ...
 class AsmOriginError(AsmError): ...
 class AsmIncludeError(AsmError): ...
@@ -26,9 +31,12 @@ class AsmWordWidthError(AsmError): ...
 
 # [label:] [(macro|.directive) [operands]...|subleq a b [c]]
 class Token:
-    def __init__(self, line: str) -> None:
+    def __init__(self, line: str, path: str="<unknown>", lineno: int=-1) -> None:
         if ";" in line: line = line.split(";")[0]
         words = line.split()
+
+        self.path = path
+        self.lineno = lineno
 
         self.label     = None
 
@@ -76,6 +84,8 @@ class Token:
         tok.macro = self.macro
         tok.directive = self.directive
         tok.operands = [*self.operands]
+        tok.path = self.path
+        tok.lineno = self.lineno
         return tok
 
     def __repr__(self) -> str:
@@ -88,10 +98,10 @@ class Token:
         if self.operands: s += " ".join(self.operands)
         return s
 
-def tokenise(source: str) -> Iterator[Token]:
-    for l in source.splitlines():
+def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
+    for i, l in enumerate(source.splitlines()):
         if not l.strip(): continue
-        yield Token(l)
+        yield Token(l, path, i)
 
 @dataclass
 class Macro:
@@ -175,13 +185,13 @@ def generate_immediates() -> Iterator[Token]:
 
         yield Token(f"  .byte {i}")
 
-def expand_macros(source: str, macros: dict[str, Macro]|None=None, allow_stdlib: bool=True) -> Iterator[Token]:
+def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
     current_macro = None
 
     immediates = False
 
-    for tok in tokenise(source):
+    for tok in tokenise(source, path):
         if tok.directive == "macro":
             if current_macro:
                 raise AsmSyntaxError("cannot nest macro definitions")
@@ -220,7 +230,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, allow_stdlib:
 
             if not file.is_file():
                 raise AsmIncludeError(f"file '{file}' could not be found")
-            yield from expand_macros(file.read_text(encoding="utf-8"), macros, allow_stdlib=False)
+            yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=path, allow_stdlib=False)
 
         # part of a macro definition
         elif current_macro:
@@ -246,14 +256,14 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, allow_stdlib:
     if immediates:
         yield from generate_immediates()
 
-def evaluate(s: str, labels: dict[str, int]|None) -> int:
+def evaluate(s: str, labels: dict[str, int]|None, token: Token|None=None) -> int:
     if len(s) == 3 and s[0] == "'" and s[-1] == "'":
         return ord(s[1])
     if len(s) > 3 and s[0] == "'" and s[1] == "\\" and s[-1] == "'":
         try:
             return ord(ESCAPE_SEQUENCES[s[2:-1]])
         except KeyError:
-            raise AsmSyntaxError(f"invalid escape sequence: {s}")
+            raise AsmSyntaxError(f"invalid escape sequence: {s}", token)
 
     try:
         return int(s, 0)
@@ -261,7 +271,7 @@ def evaluate(s: str, labels: dict[str, int]|None) -> int:
         if labels is not None and labels.get(s) is not None:
             return labels[s]
 
-    raise AsmSyntaxError(f"unsupported expression form: '{s}'")
+    raise AsmSyntaxError(f"unsupported expression form: '{s}'", token)
 
 def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     labels = {}
@@ -270,17 +280,17 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     for tok in tokens:
         if tok.label:
             if tok.label in labels:
-                raise AsmSyntaxError(f"redefinition of label: {tok.label}")
+                raise AsmSyntaxError(f"redefinition of label: {tok.label}", tok)
             labels[tok.label] = pc
 
         if tok.a is not None:
             pc += 6
         elif tok.directive == "org":
             if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected address in org directive")
+                raise AsmSyntaxError("expected address in org directive", tok)
             elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected operands in org directive")
-            pc = evaluate(tok.operands[0], None)
+                raise AsmSyntaxError("unexpected operands in org directive", tok)
+            pc = evaluate(tok.operands[0], None, tok)
         elif tok.directive == "byte":
             pc += 1
         elif tok.directive == "word":
@@ -303,49 +313,49 @@ def assemble(source: str) -> bytearray:
     for tok in tokens:
         if tok.directive == "org":
             if tok.label:
-                raise AsmOriginError("cannot apply a label to an org directive")
+                raise AsmOriginError("cannot apply a label to an org directive", tok)
             addr   = len(binary)
             # we've already verified the right amount of arguments
             # during find_labels
-            target = evaluate(tok.operands[0], labels)
+            target = evaluate(tok.operands[0], labels, tok)
             if initial_origin is None:
                 initial_origin = target
             else:
                 if target - initial_origin < addr:
-                    raise AsmOriginError("origin directives must come in order")
+                    raise AsmOriginError("origin directives must come in order", tok)
                 binary.extend(b"\0" * (target - initial_origin - addr))
 
         if initial_origin is None:
-            raise AsmOriginError("file must start with an org directive")
+            raise AsmOriginError(f"{tok.path}: file must start with an org directive")
 
         if tok.a is not None:
-            extend_with_word(binary, evaluate(tok.a, labels))
-            extend_with_word(binary, evaluate(tok.b, labels))
-            extend_with_word(binary, evaluate(tok.c, labels))
+            extend_with_word(binary, evaluate(tok.a, labels, tok))
+            extend_with_word(binary, evaluate(tok.b, labels, tok))
+            extend_with_word(binary, evaluate(tok.c, labels, tok))
 
         elif tok.directive == "byte":
             if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected argument in byte directive")
+                raise AsmSyntaxError("expected argument in byte directive", tok)
             elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected arguments in byte directive")
+                raise AsmSyntaxError("unexpected arguments in byte directive", tok)
             try:
-                binary.append(evaluate(tok.operands[0], labels))
+                binary.append(evaluate(tok.operands[0], included, tok))
             except ValueError:
-                raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)")
+                raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)", tok)
         elif tok.directive == "word":
             if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected argument in word directive")
+                raise AsmSyntaxError("expected argument in word directive", tok)
             elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected arguments in word directive")
-            extend_with_word(binary, evaluate(tok.operands[0], labels))
+                raise AsmSyntaxError("unexpected arguments in word directive", tok)
+            extend_with_word(binary, evaluate(tok.operands[0], labels, tok))
         elif tok.directive == "const":
             if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected variable name and value in const directive")
+                raise AsmSyntaxError("expected variable name and value in const directive", tok)
             elif len(tok.operands) == 1:
-                raise AsmSyntaxError("expected variable value in const directive")
+                raise AsmSyntaxError("expected variable value in const directive", tok)
             elif len(tok.operands) > 2:
-                raise AsmSyntaxError("unexpected arguments in const directive")
-            labels[tok.operands[0]] = evaluate(tok.operands[1], labels)
+                raise AsmSyntaxError("unexpected arguments in const directive", tok)
+            labels[tok.operands[0]] = evaluate(tok.operands[1], labels, tok)
 
     return binary
 
@@ -366,10 +376,10 @@ def main() -> None:
     
     try:
         if args.normalise:
-            for tok in tokenise(file):
+            for tok in tokenise(file, "<stdin>"):
                 print(tok)
         elif args.expand_macros:
-            for tok in expand_macros(file):
+            for tok in expand_macros(file, "<stdin>"):
                 print(tok)
         elif args.assemble:
             sys.stdout.buffer.write(assemble(file))

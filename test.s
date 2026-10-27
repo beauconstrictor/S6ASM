@@ -8,7 +8,7 @@
   mov #'a' l
   mov #26  i
 alphabet:
-  out u
+  out fafs
   inc u
   out l
   inc l
