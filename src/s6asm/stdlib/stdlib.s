@@ -6,9 +6,9 @@
   .const halt 0xfffe
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
-  .const z    0x7f00
+  .const z 0x7f00
 
-  .const ijp     0x7f01
+  .const ijp  0x7f01
 
   .macro clear x
     subleq x x done

@@ -487,12 +487,12 @@ def extend_with_word(binary: bytearray, word: int) -> None:
     # big endian
     binary.extend([word >> 8, word & 0xff])
 
-def assemble(source: str, path: str="<unknown>") -> bytearray:
+def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
-    binary = bytearray()
 
     initial_origin = None
+    emitted = 0
 
     for tok in tokens:
         if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
@@ -501,7 +501,6 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
         if tok.directive == "org":
             if tok.label:
                 raise AsmOriginError("cannot apply a label to an org directive", tok)
-            addr   = len(binary)
 
             # we've already verified the right amount of arguments
             # during find_labels
@@ -510,36 +509,42 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
             if initial_origin is None:
                 initial_origin = target
             else:
-                if target - initial_origin < addr:
+                if target - initial_origin < emitted:
                     raise AsmOriginError("origin directives must come in order", tok)
-                binary.extend(b"\0" * (target - initial_origin - addr))
+                for i in range(target - initial_origin - emitted):
+                    yield Token("  .byte 0", tok.path, tok.lineno)
 
         if initial_origin is None:
             raise AsmOriginError(f"{tok.path}: file must start with an org directive")
 
         if tok.a is not None and tok.b is not None and tok.c is not None:
-            extend_with_word(binary, tok.a.evaluate(labels, tok))
-            extend_with_word(binary, tok.b.evaluate(labels, tok))
-            extend_with_word(binary, tok.c.evaluate(labels, tok))
+            tok.a = Expression(str(tok.a.evaluate(labels, tok)))
+            tok.b = Expression(str(tok.b.evaluate(labels, tok)))
+            tok.c = Expression(str(tok.c.evaluate(labels, tok)))
+            emitted += 6
 
         elif tok.directive == "byte":
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected argument in byte directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in byte directive", tok)
-            value = make_expr(tok.operands[0]).evaluate(labels, tok)
-            try:
-                binary.append(value)
-            except ValueError:
-                raise AsmWordWidthError("byte directives must be in the range 0-255 (inclusive)", tok)
+            tok.operands = [Expression(str(make_expr(tok.operands[0]).evaluate(labels, tok)))]
+
         elif tok.directive == "word":
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected argument in word directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in word directive", tok)
-            extend_with_word(binary, make_expr(tok.operands[0]).evaluate(labels, tok))
+            value = make_expr(tok.operands[0]).evaluate(labels, tok))) 0xffff
 
-    return binary
+            hi = value >> 8
+            lo = value & 0xff
+
+            yield Token(f"  .byte {hi}", tok)
+            yield Token(f"  .byte {lo}", tok)
+            continue
+
+        yield tok
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -553,6 +558,7 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("-n", "--normalise", action="store_true")
     mode.add_argument("-m", "--expand-macros", action="store_true")
+    mode.add_argument("-e", "--evaluate", action="store_true")
     mode.add_argument("-a", "--assemble", default=True, action="store_true")
 
     args = parser.parse_args()
@@ -561,10 +567,13 @@ def main() -> None:
 
     try:
         if args.normalise:
-            for tok in tokenise(file, path):
+            for tok in tokenise(file, path=path):
                 print(tok)
         elif args.expand_macros:
             for tok in expand_macros(file, path=path):
+                print(tok)
+        elif args.evaluate:
+            for tok in evaluate(file, path=path):
                 print(tok)
         elif args.assemble:
             sys.stdout.buffer.write(assemble(file, path))
