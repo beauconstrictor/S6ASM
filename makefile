@@ -1,5 +1,5 @@
 .PHONY: run
 run:
-	s6asm -m test.s > temp.s
-	# s6emu temp.bin
+	s6asm test.s > temp.bin
+	s6emu temp.bin
 

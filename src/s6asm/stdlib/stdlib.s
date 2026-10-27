@@ -1,4 +1,6 @@
-  ; constants
+  .org 0x8000 
+
+; constants
   .const in 0xffff
   .const out 0xfffe
   .const halt 0xfffe
@@ -72,8 +74,6 @@ done:
     jmp y
 done:
   .endmacro
-
-  .org 0x8000 
 
 _start:
   ; a jmp instruction is effectively 0x0000 0x0000 0xADDR

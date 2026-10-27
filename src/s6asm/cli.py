@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 import argparse
 from enum import Enum
@@ -9,6 +11,15 @@ from typing import override, Self, final
 from collections.abc import Iterator, Iterable, Sequence
 
 # TODO: infix expressions with shunting-yard (requires above)
+# TODO: includes relative to the file itself, not the cwd
+
+ALLOWED_DIRECTIVES = {
+        "org",
+        "byte",
+        "word",
+        "const",
+        "macro",
+        "endmacro"}
 
 class AsmError(Exception):
     def __init__(self, message: str, token: Token|None=None) -> None:
@@ -21,6 +32,7 @@ class AsmOriginError(AsmError): ...
 class AsmIncludeError(AsmError): ...
 class AsmRecursionError(AsmError): ...
 class AsmWordWidthError(AsmError): ...
+class AsmExpressionError(AsmError): ...
 
 # [label:] [(macro|.directive) [operands]...|subleq a b c]
 class Token:
@@ -179,32 +191,35 @@ class Expression:
     def evaluate(self, labels: dict[str, int]|None=None, token: Token|None=None) -> int:
         stack: list[int] = []
 
-        for tok in self.tokens:
-            if isinstance(tok, Literal):
-                stack.append(tok.evaluate(labels, token))
-            else:
-                try:
-                    b = stack.pop()
-                    a = stack.pop()
-                except IndexError:
-                    raise AsmSyntaxError("expression underflows", token)
-                match tok:
-                    case Operation.ADD:
-                        stack.append(a + b)
-                    case Operation.SUB:
-                        stack.append(a - b)
-                    case Operation.MUL:
-                        stack.append(a * b)
-                    case Operation.DIV:
-                        stack.append(a // b)
-                    case Operation.LSR:
-                        stack.append(a >> b)
-                    case Operation.LSL:
-                        stack.append(a << b)
-                    case Operation.XOR:
-                        stack.append(a ^ b)
-                    case Operation.MOD:
-                        stack.append(a % b)
+        try:
+            for tok in self.tokens:
+                if isinstance(tok, Literal):
+                    stack.append(tok.evaluate(labels, token))
+                else:
+                    try:
+                        b = stack.pop()
+                        a = stack.pop()
+                    except IndexError:
+                        raise AsmSyntaxError("expression underflows", token)
+                    match tok:
+                        case Operation.ADD:
+                            stack.append(a + b)
+                        case Operation.SUB:
+                            stack.append(a - b)
+                        case Operation.MUL:
+                            stack.append(a * b)
+                        case Operation.DIV:
+                            stack.append(a // b)
+                        case Operation.LSR:
+                            stack.append(a >> b)
+                        case Operation.LSL:
+                            stack.append(a << b)
+                        case Operation.XOR:
+                            stack.append(a ^ b)
+                        case Operation.MOD:
+                            stack.append(a % b)
+        except ZeroDivisionError:
+            raise AsmExpressionError("division by zero", token)
 
         if len(stack) < 1:
             raise AsmSyntaxError("expression is empty", token)
@@ -332,8 +347,7 @@ def generate_immediates() -> Iterator[Token]:
 
     for i in range(0x100):
         if is_printable_ascii(i) and chr(i) not in ("'"):
-            l = f"#'{i}':"
-            yield from make_tok(l)
+            yield from make_tok(f"#'{chr(i)}':")
 
         for prefix, max_width in (("x", 2), ("b", 8)):
             for w in range(1, max_width + 1):
@@ -464,6 +478,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmSyntaxError("unexpected arguments in const directive", tok)
             if isinstance(tok.operands[0], Expression):
                 raise TypeError("this can't happen")
+            if tok.operands[0] in labels:
+                raise AsmSyntaxError(f"redefinition of label: {tok.label}", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
     return labels
@@ -481,6 +497,9 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
     initial_origin = None
 
     for tok in tokens:
+        if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
+            raise AsmSyntaxError(f"unknown directive: '{tok.directive}'", tok)
+
         if tok.directive == "org":
             if tok.label:
                 raise AsmOriginError("cannot apply a label to an org directive", tok)
@@ -510,8 +529,9 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
                 raise AsmSyntaxError("expected argument in byte directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in byte directive", tok)
+            value = make_expr(tok.operands[0]).evaluate(labels, tok)
             try:
-                binary.append(make_expr(tok.operands[0]).evaluate(labels, tok))
+                binary.append(value)
             except ValueError:
                 raise AsmWordWidthError("byte directives must be in the range 0-255 (inclusive)", tok)
         elif tok.directive == "word":
