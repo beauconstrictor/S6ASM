@@ -185,7 +185,7 @@ def generate_immediates() -> Iterator[Token]:
                 labels.add(l)
                 yield make_tok(l)
 
-        for w in range(1,6):
+        for w in range(1,3):
             l = f"#{i:0{w}d}:"
             if l in labels: continue
             labels.add(l)
