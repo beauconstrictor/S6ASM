@@ -167,31 +167,26 @@ def is_printable_ascii(c: int) -> bool:
 def generate_immediates() -> Iterator[Token]:
     labels: set[str] = set()
 
-    def make_tok(l: str) -> Token:
-        return Token(l, "<stdlib>", -1)
+    def make_tok(l: str) -> Iterator[Token]:
+        if l in labels: return
+        labels.add(l)
+        yield Token(l, "<stdlib>", -1)
 
     for i in range(0x100):
         if is_printable_ascii(i) and chr(i) not in (" ", ";"):
             l = f"#'{chr(i)}':"
-            if l in labels: continue
-            labels.add(l)
-            yield make_tok(l)
+            yield from make_tok(l)
 
         for prefix, max_width in (("x", 2), ("b", 8)):
             for w in range(1, max_width + 1):
                 l = f"#0{prefix}{i:0{w}{prefix}}:"
-                if l in labels:
-                    continue
-                labels.add(l)
-                yield make_tok(l)
+                yield from make_tok(l)
 
-        for w in range(1,3):
+        for w in range(1,4):
             l = f"#{i:0{w}d}:"
-            if l in labels: continue
-            labels.add(l)
-            yield make_tok(l)
+            yield from make_tok(l)
 
-        yield make_tok(f"  .byte {i}")
+        yield from make_tok(f"  .byte {i}")
 
 def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
