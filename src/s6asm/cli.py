@@ -7,7 +7,6 @@ from importlib.resources import files
 from importlib.metadata import version
 
 # TODO: expressions with operators
-# TODO: line numbers in error messages!
 # TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
 
@@ -367,7 +366,9 @@ def assemble(source: str) -> bytearray:
 def main() -> None:
     parser = argparse.ArgumentParser(
             prog="s6asm")
-    
+
+    parser.add_argument("file", type=argparse.FileType("r"))
+
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("-n", "--normalise", action="store_true")
     mode.add_argument("-m", "--expand-macros", action="store_true")
@@ -376,15 +377,15 @@ def main() -> None:
                       version=f"%(prog)s {version('s6asm')}")
 
     args = parser.parse_args()
+    file = args.file.read()
+    path = args.file.name
 
-    file = sys.stdin.read()
-    
     try:
         if args.normalise:
-            for tok in tokenise(file, "<stdin>"):
+            for tok in tokenise(file, path):
                 print(tok)
         elif args.expand_macros:
-            for tok in expand_macros(file, "<stdin>"):
+            for tok in expand_macros(file, path):
                 print(tok)
         elif args.assemble:
             sys.stdout.buffer.write(assemble(file))
