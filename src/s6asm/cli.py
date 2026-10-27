@@ -94,12 +94,12 @@ class Token:
     def duplicate(self) -> Self:
         tok           = type(self)("")
         tok.label     = self.label
-        tok.a         = self.a
-        tok.b         = self.b
-        tok.c         = self.c
+        tok.a         = self.a.duplicate() if self.a else None
+        tok.b         = self.b.duplicate() if self.b else None
+        tok.c         = self.c.duplicate() if self.c else None
         tok.macro     = self.macro
         tok.directive = self.directive
-        tok.operands  = [*self.operands]
+        tok.operands  = [o.duplicate() if isinstance(o, Expression) else o for o in self.operands]
         tok.path      = self.path
         tok.lineno    = self.lineno
         return tok
@@ -148,6 +148,9 @@ class Literal:
         if self.text != label: return
         self.text = new_value
 
+    def duplicate(self) -> Self:
+        return type(self)(self.text)
+
     @override
     def __str__(self) -> str:
         return self.text
@@ -168,7 +171,7 @@ class Expression:
         self.tokens: list[Literal|Operation] = []
 
         for word in text.split():
-            if word in Operation:
+            if word in {op.value for op in Operation}:
                 self.tokens.append(Operation(word))
             else:
                 self.tokens.append(Literal(word))
@@ -211,12 +214,31 @@ class Expression:
         return stack[0]
 
     def substitute(self, label: str, new_value: str | Self) -> None:
-            for i, tok in enumerate(self.tokens):
-                if not isinstance(tok, Literal): continue
+        result: list[Literal | Operation] = []
+
+        for tok in self.tokens:
+            if isinstance(tok, Literal) and tok.text == label:
                 if isinstance(new_value, str):
-                    tok.substitute(label, new_value)
+                    result.append(Literal(new_value))
                 else:
-                    self.tokens[i:i+1] = new_value.tokens
+                    result.extend(new_value.duplicate().tokens)
+            else:
+                result.append(tok)
+
+        self.tokens = result
+
+    def duplicate(self) -> Self:
+        new_toks: list[Literal | Operation] = []
+
+        for tok in self.tokens:
+            if isinstance(tok, Literal):
+                new_toks.append(tok.duplicate())
+            else:
+                new_toks.append(tok)
+
+        duplicate = type(self)("")
+        duplicate.tokens = new_toks
+        return duplicate
 
     @override
     def __repr__(self) -> str:
@@ -365,7 +387,9 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             ident = tok.operands[0]
             if isinstance(ident, Expression):
                 raise TypeError("stop wasting my time pyright")
-            if len(ident) < 2 or (ident[0] not in ('"', "'") and ident[0] != "<" and ident[-1] != ">"):
+            if len(ident) < 2 or not (
+               (ident[0] == ident[-1] and ident[0] in ('"', "'"))
+               or (ident[0] == "<" and ident[-1] == ">")):
                 raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
             stdlib = ident[0] == "<"
             path = ident[1:-1]
@@ -431,6 +455,16 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             pc += 1
         elif tok.directive == "word":
             pc += 2
+        elif tok.directive == "const":
+            if len(tok.operands) < 1:
+                raise AsmSyntaxError("expected variable name and value in const directive", tok)
+            elif len(tok.operands) == 1:
+                raise AsmSyntaxError("expected variable value in const directive", tok)
+            elif len(tok.operands) > 2:
+                raise AsmSyntaxError("unexpected arguments in const directive", tok)
+            if isinstance(tok.operands[0], Expression):
+                raise TypeError("this can't happen")
+            labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
     return labels
 
@@ -479,23 +513,13 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
             try:
                 binary.append(make_expr(tok.operands[0]).evaluate(labels, tok))
             except ValueError:
-                raise AsmWordWidthError("byte directives must be in the range 0 <-> 255 (inclusive)", tok)
+                raise AsmWordWidthError("byte directives must be in the range 0-255 (inclusive)", tok)
         elif tok.directive == "word":
             if len(tok.operands) < 1:
                 raise AsmSyntaxError("expected argument in word directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in word directive", tok)
             extend_with_word(binary, make_expr(tok.operands[0]).evaluate(labels, tok))
-        elif tok.directive == "const":
-            if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected variable name and value in const directive", tok)
-            elif len(tok.operands) == 1:
-                raise AsmSyntaxError("expected variable value in const directive", tok)
-            elif len(tok.operands) > 2:
-                raise AsmSyntaxError("unexpected arguments in const directive", tok)
-            if isinstance(tok.operands[0], Expression):
-                raise TypeError("this can't happen")
-            labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
     return binary
 
