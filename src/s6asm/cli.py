@@ -8,7 +8,6 @@ from importlib.metadata import version
 from collections.abc import Iterator, Iterable
 
 # TODO: expressions with operators
-# TODO: support labels attached to macro calls
 # TODO: semicolon and space in character literals
 
 ESCAPE_SEQUENCES = {
@@ -168,12 +167,15 @@ def is_printable_ascii(c: int) -> bool:
 def generate_immediates() -> Iterator[Token]:
     labels: set[str] = set()
 
+    def make_tok(l: str) -> Token:
+        return Token(l, "<stdlib>", -1)
+
     for i in range(0x100):
         if is_printable_ascii(i) and chr(i) not in (" ", ";"):
             l = f"#'{chr(i)}':"
             if l in labels: continue
             labels.add(l)
-            yield Token(l)
+            yield make_tok(l)
 
         for prefix, max_width in (("x", 2), ("b", 8)):
             for w in range(1, max_width + 1):
@@ -181,15 +183,15 @@ def generate_immediates() -> Iterator[Token]:
                 if l in labels:
                     continue
                 labels.add(l)
-                yield Token(l)
+                yield make_tok(l)
 
         for w in range(1,6):
             l = f"#{i:0{w}d}:"
             if l in labels: continue
             labels.add(l)
-            yield Token(l)
+            yield make_tok(l)
 
-        yield Token(f"  .byte {i}")
+        yield make_tok(f"  .byte {i}")
 
 def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
@@ -208,7 +210,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             macro_definition = tok
             current_macro = Macro([], tok.operands[0], set(), tok.operands[1:])
             if tok.label:
-                current_macro.tokens.append(Token(f"{tok.label}:"))
+                current_macro.tokens.append(Token(f"{tok.label}:", tok.path, tok.lineno))
                 current_macro.labels.add(tok.label)
 
         elif tok.directive == "endmacro":
@@ -249,7 +251,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         # a macro call
         elif tok.macro is not None:
             if tok.label:
-                yield Token(f"{tok.label}:")
+                yield Token(f"{tok.label}:", tok.path, tok.lineno)
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
@@ -312,8 +314,8 @@ def extend_with_word(binary: bytearray, word: int) -> None:
     # big endian
     binary.extend([word >> 8, word & 0xff])
 
-def assemble(source: str) -> bytearray:
-    tokens = list(expand_macros(source))
+def assemble(source: str, path: str="<unknown>") -> bytearray:
+    tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
     binary = bytearray()
 
@@ -386,7 +388,6 @@ def main() -> None:
     file = args.file.read_text(encoding="utf-8")
     path = str(args.file)
 
-
     try:
         if args.normalise:
             for tok in tokenise(file, path):
@@ -395,7 +396,7 @@ def main() -> None:
             for tok in expand_macros(file, path=path):
                 print(tok)
         elif args.assemble:
-            sys.stdout.buffer.write(assemble(file))
+            sys.stdout.buffer.write(assemble(file, path))
         else:
             print(args)
     except AsmError as e:
