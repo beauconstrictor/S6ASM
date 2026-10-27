@@ -482,11 +482,6 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     return labels
 
-def extend_with_word(binary: bytearray, word: int) -> None:
-    word &= 0xffff
-    # big endian
-    binary.extend([word >> 8, word & 0xff])
-
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
@@ -535,51 +530,130 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
                 raise AsmSyntaxError("expected argument in word directive", tok)
             elif len(tok.operands) > 1:
                 raise AsmSyntaxError("unexpected arguments in word directive", tok)
-            value = make_expr(tok.operands[0]).evaluate(labels, tok))) 0xffff
+            value = make_expr(tok.operands[0]).evaluate(labels, tok) & 0xffff
 
             hi = value >> 8
             lo = value & 0xff
 
-            yield Token(f"  .byte {hi}", tok)
-            yield Token(f"  .byte {lo}", tok)
+            yield Token(f"  .byte {hi}", tok.path, tok.lineno)
+            yield Token(f"  .byte {lo}", tok.path, tok.lineno)
             continue
 
+        else:
+            # we can discard labels and constants now
+            continue
+
+        tok.label = None
         yield tok
+
+def extend_with_word(binary: bytearray, word: int) -> None:
+    word &= 0xffff
+    # big endian
+    binary.extend([word >> 8, word & 0xff])
+
+def assemble(source: str, path: str="<unknown>") -> bytearray:
+    binary = bytearray()
+
+    for tok in evaluate(source, path):
+        if tok.directive == "byte":
+            binary.extend([make_expr(tok.operands[0]).evaluate(None, tok)])
+        elif tok.a and tok.b and tok.c:
+            extend_with_word(binary, tok.a.evaluate(None, tok))
+            extend_with_word(binary, tok.b.evaluate(None, tok))
+            extend_with_word(binary, tok.c.evaluate(None, tok))
+
+    return binary
+
+class Emulate:
+    def __init__(self, image: bytearray) -> None:
+        if len(image) > 0x8000:
+            raise AsmRomError("program too large to fit into 32K.")
+
+        self.rom = image.copy()
+        self.rom.extend(b'\00' * (0x8000 - len(image)))
+        self.ram = bytearray(0x8000)
+
+        self.pc = 0x8000
+
+        while self.pc != 0xfffe:
+            self.execute()
+    
+    def fetch(self, addr: int) -> int:
+        if addr == 0xffff:
+            raise NotImplementedError("the integrated emulator does not yet support input")
+        elif addr < 0x8000:
+            return self.ram[addr]
+        elif addr < 0x10000:
+            return self.rom[addr - 0x8000]
+        raise ValueError("memory read out of range")
+
+    def fetchw(self, addr: int) -> int:
+        return (self.fetch(addr) << 8) | (self.fetch(addr+1))
+
+    def write(self, addr: int, value: int) -> None:
+        if addr == 0xfffe:
+            sys.stdout.write(chr(value))
+        elif addr < 0x8000:
+            self.ram[addr] = value
+        elif addr < 0x10000:
+            pass
+        else:
+            raise ValueError("memory write out of range")
+
+    def execute(self) -> None:
+        a = self.fetchw(self.pc)
+        self.pc += 2
+        b = self.fetchw(self.pc)
+        self.pc += 2
+        c = self.fetchw(self.pc)
+        self.pc += 2
+
+        r = (self.fetch(b) - self.fetch(a)) & 0xff
+        self.write(b, r)
+
+        if r == 0 | (r & 0x80):
+            self.pc = c
 
 def main() -> None:
     parser = argparse.ArgumentParser(
             prog="s6asm")
 
-    parser.add_argument("file", type=Path)
+    parser.add_argument("program", type=Path)
 
     parser.add_argument("-v", "--version", action="version",
                       version=f"%(prog)s {version('s6asm')}")
 
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("-n", "--normalise", action="store_true")
-    mode.add_argument("-m", "--expand-macros", action="store_true")
-    mode.add_argument("-e", "--evaluate", action="store_true")
-    mode.add_argument("-a", "--assemble", default=True, action="store_true")
+    mode.add_argument("-t", "--tokeniser", action="store_true",
+                      help="convert the program into a simpler form.")
+    mode.add_argument("-p", "--preprocessor", action="store_true",
+                      help="expand macros and includes in the program.")
+    mode.add_argument("-l", "--linker", action="store_true",
+                      help="convert the program into a series of subleq instructions and byte directives.")
+    mode.add_argument("-a", "--assembler", default=True, action="store_true",
+                      help="assemble the program into a ROM image.")
+    mode.add_argument("-e", "--emulator", action="store_true",
+                      help="execute the program using a built-in S6 emulator.")
 
     args = parser.parse_args()
-    file = args.file.read_text(encoding="utf-8")
-    path = str(args.file)
+    file = args.program.read_text(encoding="utf-8")
+    path = str(args.program)
 
     try:
-        if args.normalise:
+        if args.tokeniser:
             for tok in tokenise(file, path=path):
                 print(tok)
-        elif args.expand_macros:
+        elif args.preprocessor:
             for tok in expand_macros(file, path=path):
                 print(tok)
-        elif args.evaluate:
+        elif args.linker:
             for tok in evaluate(file, path=path):
                 print(tok)
-        elif args.assemble:
+        elif args.emulator:
+            Emulate(assemble(file, path))
+        elif args.assembler:
             sys.stdout.buffer.write(assemble(file, path))
-        else:
-            print(args)
-    except AsmError as e:
+    except (AsmError, NotImplementedError) as e:
         parser.error(str(e))
 
 if __name__ == "__main__":
