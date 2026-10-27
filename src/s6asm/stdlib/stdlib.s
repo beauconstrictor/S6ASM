@@ -9,11 +9,6 @@
   .const z    0x7f00
 
   .const ijp     0x7f01
-  .const _ijp_0  0x7f02
-  .const _ijp_1  0x7f03
-  .const _ijp_2  0x7f04
-  .const _ijp_hi 0x7f05
-  .const _ijp_lo 0x7f06
 
   .macro clear x
     subleq x x done
@@ -79,6 +74,6 @@ _start:
   ; a jmp instruction is effectively 0x0000 0x0000 0xADDR
   ; so we just encode that here in memory, for indirects
   clear ijp
-  clear _ijp_0
-  clear _ijp_1
-  clear _ijp_2
+  clear (ijp 1 +)
+  clear (ijp 2 +)
+  clear (ijp 2 +)

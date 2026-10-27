@@ -48,6 +48,8 @@ label: subleq a b c
 
 Then, instructions are either preceeded by a `.`, in which case they are a *directive*, which signals something to the assembler itself, or not. In that case, the instruction can be `subleq`, or a macro (optionally followed by some number of operands), which will be expanded to a series of `subleqs`.
 
+Comments are marked with a `;`. Anything after a semicolon, assuming that semicolon is not inside quotes or parentheses will be ignored by the assembler.
+
 ### Directives
 
 The assembler includes various directives (instructions prefixed with a `.`), which allow you to do things that aren't regular instructions. Here is a list of the common ones:
@@ -58,7 +60,7 @@ The assembler includes various directives (instructions prefixed with a `.`), wh
 - `.include "path"`: include the contents of another source file.
 - `.org`: Move forward to a new address, inserting NULLs as needed.
 
-### Literals
+### Literals and Expressions
 
 Where a number is expected, you can enter it in one of 3 formats:
 
@@ -67,7 +69,14 @@ Where a number is expected, you can enter it in one of 3 formats:
 - Binary: Preceed a number with `0b` to express it in binary 
 - Decimal: Write a number as-is to express it in decimal
 
-Expressions are not currently supported.
+You can also use expressions on these literals. To mark an expression, wrap it in parentheses. You must use spaces between your operators and numbers.
+
+Notably, expressions they must be written in [postfix notation](https://en.wikipedia.org/wiki/Reverse_Polish_notation). For example, to jump to a label, but skipping the first instruction after that label (remember that instructions are 6 bytes long):
+
+```
+  .const INST_WIDTH 6
+  jmp (label INST_WIDTH +)
+```
 
 ### Immediates
 
