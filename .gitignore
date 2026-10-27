@@ -3,3 +3,4 @@ __pycache__
 src/s6asm.egg-info/
 src/s6asm.egg-info/*
 temp.bin
+temp.s
