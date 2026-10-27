@@ -37,6 +37,14 @@ You can then load the binary into an S6 emulator. This is how you would do that 
 s6emu test.bin
 ```
 
+S6ASM also includes an integrated S6 emulator, so you can run an assembly program directly:
+
+```
+s6asm -e test.s
+```
+
+This emulator has considerably worse performance than `s6emu`, so it is recommended to switch to it once your programs grow.
+
 ## Syntax
 
 This assembler uses a very simple syntax. Lines are either indented with whitespace, or start with a `:`-terminated label, like this:
@@ -198,6 +206,18 @@ And finally, you will need to define constants for the various features of the S
   .const in  0xffff
   ; etc...
 ```
+
+## Pipeline
+
+The assembler transforms the code into a binary in several distinct steps.:
+
+1. Tokenisation - Converts the plaintext program into structured data for the assembler to use.
+2. Preprocessing - Expands macros and adds the contents of included files.
+3. Linking - The assembler decided where in memory instructions and data will be placed.
+4. Assembly - The assembler produces a final binary image.
+5. (Optionally) Emulation - The assembler loads the binary into a simulated S6 and executes it. :a
+
+Using command line flags, you can tell the assembler to stop at any particular stage, in which case it will output an intermediate representation.
 
 ## License
 
