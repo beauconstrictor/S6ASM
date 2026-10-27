@@ -52,10 +52,10 @@ done:
     subleq z z x
   .endmacro
 
-  ; indirect jump to 0xHILO
-  .macro ijp hi lo
-    mov hi _ijp_hi
-    mov lo _ijp_lo
+  ; indirect jump to 0x
+  .macro ijp addr
+    mov (addr) (ijp 4 +)
+    mov (addr 1 +) (ijp 5 +)
     jmp _ijp
   .endmacro
 
@@ -76,4 +76,4 @@ _start:
   clear ijp
   clear (ijp 1 +)
   clear (ijp 2 +)
-  clear (ijp 2 +)
+  clear (ijp 3 +)

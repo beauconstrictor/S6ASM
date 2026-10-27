@@ -10,9 +10,6 @@ from importlib.metadata import version
 from typing import override, Self, final
 from collections.abc import Iterator, Iterable, Sequence
 
-# TODO: infix expressions with shunting-yard (requires above)
-# TODO: includes relative to the file itself, not the cwd
-
 ALLOWED_DIRECTIVES = {
         "org",
         "byte",
