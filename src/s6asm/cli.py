@@ -100,7 +100,7 @@ class Token:
         return s
 
 def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
-    for i, l in enumerate(source.splitlines()):
+    for i, l in enumerate(source.splitlines(), start=1):
         if not l.strip(): continue
         yield Token(l, path, i)
 
