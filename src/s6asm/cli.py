@@ -119,16 +119,18 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
     try:
         macro = macros[tok.macro]
     except KeyError:
-        raise AsmSyntaxError(f"undefined macro: {tok.macro}")
+        raise AsmSyntaxError(f"undefined macro: {tok.macro}", tok)
 
     if len(tok.operands) != len(macro.parameters):
-        raise AsmSyntaxError(f"incorrect macro argument count")
+        raise AsmSyntaxError(f"incorrect macro argument count", tok)
 
     suffix = f"___macro{macro_invocation_idx}"
     macro_invocation_idx += 1
 
     for subtok in macro.tokens:
         subtok = subtok.duplicate()
+        subtok.path = tok.path
+        subtok.lineno = tok.lineno
 
         # macro local labels
         if subtok.label: subtok.label += suffix
@@ -188,16 +190,18 @@ def generate_immediates() -> Iterator[Token]:
 def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
     current_macro = None
+    macro_definition = None
 
     immediates = False
 
     for tok in tokenise(source, path):
         if tok.directive == "macro":
             if current_macro:
-                raise AsmSyntaxError("cannot nest macro definitions")
+                raise AsmSyntaxError("cannot nest macro definitions", tok)
             if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected macro name")
+                raise AsmSyntaxError("expected macro name", tok)
 
+            macro_definition = tok
             current_macro = Macro([], tok.operands[0], set(), tok.operands[1:])
             if tok.label:
                 current_macro.tokens.append(Token(f"{tok.label}:"))
@@ -205,23 +209,24 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
 
         elif tok.directive == "endmacro":
             if not current_macro:
-                raise AsmSyntaxError("endmacro directive outside of a macro definition")
+                raise AsmSyntaxError("endmacro directive outside of a macro definition", tok)
             macro = current_macro
             macros[macro.name] = macro
             current_macro = None
+            macro_definition = None
 
         elif tok.directive == "include":
             if len(tok.operands) != 1:
-                raise AsmSyntaxError("incorrect argument count in include directive")
+                raise AsmSyntaxError("incorrect argument count in include directive", tok)
 
             ident = tok.operands[0]
             if len(ident) < 2 or (ident[0] not in ('"', "'") and ident[0] != "<" and ident[-1] != ">"):
-                raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes")
+                raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
             stdlib = ident[0] == "<"
             path = ident[1:-1]
 
             if stdlib and not allow_stdlib:
-                raise AsmIncludeError("cannot include <stdlib> outside of the root file")
+                raise AsmIncludeError("cannot include <stdlib> outside of the root file", tok)
             elif stdlib:
                 if path == "stdlib": immediates = True
                 file = files("s6asm").joinpath("stdlib", path + ".s")
@@ -229,7 +234,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                 file = Path(path)
 
             if not file.is_file():
-                raise AsmIncludeError(f"file '{file}' could not be found")
+                raise AsmIncludeError(f"file '{file}' could not be found", tok)
             yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=path, allow_stdlib=False)
 
         # part of a macro definition
@@ -244,14 +249,14 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
-                raise AsmRecursionError("macro recursion too deep")
+                raise AsmRecursionError("macro recursion too deep", tok)
 
         # instruction/label/directive
         else:
             yield tok
 
     if current_macro is not None:
-        raise AsmSyntaxError("macro definition is unterminated")
+        raise AsmSyntaxError("macro definition is unterminated", macro_definition)
 
     if immediates:
         yield from generate_immediates()
