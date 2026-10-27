@@ -6,6 +6,12 @@ This assembler is a very simple macro assembler that compiles to raw binary outp
 
 # Getting Started
 
+First, install S6ASM using `pip`:
+
+```
+python -m pip install git+https://github.com/beauconstrictor/s6asm.git
+```
+
 This sample program prints the uppercase alphabet:
 
 ```
