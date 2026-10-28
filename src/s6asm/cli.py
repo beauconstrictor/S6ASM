@@ -16,6 +16,7 @@ ALLOWED_DIRECTIVES = {
         "word",
         "const",
         "macro",
+        "asciiz",
         "endmacro"}
 
 class AsmError(Exception):
@@ -24,6 +25,8 @@ class AsmError(Exception):
             super().__init__(f"{token.path}:{token.lineno}: {message}")
         else:
             super().__init__(message)
+
+class AsmRomError(AsmError): ...
 class AsmSyntaxError(AsmError): ...
 class AsmOriginError(AsmError): ...
 class AsmIncludeError(AsmError): ...
@@ -46,7 +49,7 @@ class Token:
             if c == ")" and in_paren and not in_quote:
                 in_paren = False
                 continue
-            if c == "'":
+            if c in ("'", '"'):
                 in_quote = not in_quote
             if c == ";" and not in_quote and not in_paren:
                 break
@@ -99,6 +102,10 @@ class Token:
         else:
             self.macro = words[0]
             self.operands = [Expression(w) for w in words[1:]]
+
+    @staticmethod
+    def using(line: str, tok: Token) -> Token:
+        return Token(line, tok.path, tok.lineno)
 
     def duplicate(self) -> Self:
         tok           = type(self)("")
@@ -357,6 +364,8 @@ def generate_immediates() -> Iterator[Token]:
 
         yield from make_tok(f"  .byte {i}")
 
+# - recursively expand macros to their contents
+# - insert contents of includes
 def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
     if macros is None: macros = {}
     current_macro = None
@@ -374,13 +383,12 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             operands: list[str] = []
             macro_definition = tok
             for o in tok.operands:
-                if isinstance(o, Expression):
-                    raise TypeError("pyright!!!")
+                assert not isinstance(o, Expression)
                 operands.append(o)
             current_macro = Macro([], operands[0], set(), operands[1:])
 
             if tok.label:
-                current_macro.tokens.append(Token(f"{tok.label}:", tok.path, tok.lineno))
+                current_macro.tokens.append(Token.using(f"{tok.label}:", tok))
                 current_macro.labels.add(tok.label)
 
         elif tok.directive == "endmacro":
@@ -396,8 +404,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                 raise AsmSyntaxError("incorrect argument count in include directive", tok)
 
             ident = tok.operands[0]
-            if isinstance(ident, Expression):
-                raise TypeError("stop wasting my time pyright")
+            assert not isinstance(ident, Expression)
             if len(ident) < 2 or not (
                (ident[0] == ident[-1] and ident[0] in ('"', "'"))
                or (ident[0] == "<" and ident[-1] == ">")):
@@ -426,7 +433,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         # a macro call
         elif tok.macro is not None:
             if tok.label:
-                yield Token(f"{tok.label}:", tok.path, tok.lineno)
+                yield Token.using(f"{tok.label}:", tok)
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
@@ -443,6 +450,18 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         yield from generate_immediates()
 
 
+def ensure_args(tok: Token, count: int) -> None:
+    if len(tok.operands) == count - 1:
+        raise AsmSyntaxError("missing operand", tok)
+    elif len(tok.operands) < count:
+        raise AsmSyntaxError("missing operands", tok)
+    elif len(tok.operands) == count + 1:
+        raise AsmSyntaxError("unexpected operand", tok)
+    elif len(tok.operands) > count:
+        raise AsmSyntaxError("unexpected operands", tok)
+
+# - calculate the addresses of all the labels
+# - verify the arguments of directives
 def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     labels: dict[str, int] = {}
     pc = 0
@@ -456,32 +475,38 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
         if tok.a is not None:
             pc += 6
         elif tok.directive == "org":
-            if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected address in org directive", tok)
-            elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected operands in org directive", tok)
-            if isinstance(tok.operands[0], Expression):
-                raise TypeError("ughh this isn't necessary pyright")
+            if tok.label:
+                raise AsmOriginError("cannot apply a label to an org directive", tok)
+            ensure_args(tok, 1)
+            assert not isinstance(tok.operands[0], Expression)
             pc = Expression(tok.operands[0]).evaluate(labels, tok)
         elif tok.directive == "byte":
+            ensure_args(tok, 1)
             pc += 1
         elif tok.directive == "word":
+            ensure_args(tok, 1)
             pc += 2
         elif tok.directive == "const":
-            if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected variable name and value in const directive", tok)
-            elif len(tok.operands) == 1:
-                raise AsmSyntaxError("expected variable value in const directive", tok)
-            elif len(tok.operands) > 2:
-                raise AsmSyntaxError("unexpected arguments in const directive", tok)
-            if isinstance(tok.operands[0], Expression):
-                raise TypeError("this can't happen")
+            ensure_args(tok, 2)
+            assert not isinstance(tok.operands[0], Expression)
             if tok.operands[0] in labels:
                 raise AsmSyntaxError(f"redefinition of label: {tok.label}", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
+        elif tok.directive == "asciiz":
+            ensure_args(tok, 1)
+            assert not isinstance(tok.operands[0], Expression)
+            s = tok.operands[0]
+            quotes = ("'", '"')
+            if len(s) < 2 or s[0] not in quotes or s[-1] not in quotes:
+                raise AsmSyntaxError("expected quotes around string argument", tok)
+            assert not isinstance(s, Expression)
+
+            pc += len(s) - 1
+
     return labels
 
+# - remove all labels and expressions from the program
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
@@ -490,15 +515,13 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     emitted = 0
 
     for tok in tokens:
+        # all these directives are verified as correct in
+        # find_labels, so we can just use them here
+
         if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
             raise AsmSyntaxError(f"unknown directive: '{tok.directive}'", tok)
 
         if tok.directive == "org":
-            if tok.label:
-                raise AsmOriginError("cannot apply a label to an org directive", tok)
-
-            # we've already verified the right amount of arguments
-            # during find_labels
             target = make_expr(tok.operands[0]).evaluate(labels, tok)
 
             if initial_origin is None:
@@ -506,8 +529,8 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             else:
                 if target - initial_origin < emitted:
                     raise AsmOriginError("origin directives must come in order", tok)
-                for i in range(target - initial_origin - emitted):
-                    yield Token("  .byte 0", tok.path, tok.lineno)
+                for _ in range(target - initial_origin - emitted):
+                    yield Token.using("  .byte 0", tok)
 
         if initial_origin is None:
             raise AsmOriginError(f"{tok.path}: file must start with an org directive")
@@ -519,25 +542,22 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             emitted += 6
 
         elif tok.directive == "byte":
-            if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected argument in byte directive", tok)
-            elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected arguments in byte directive", tok)
             tok.operands = [Expression(str(make_expr(tok.operands[0]).evaluate(labels, tok)))]
 
         elif tok.directive == "word":
-            if len(tok.operands) < 1:
-                raise AsmSyntaxError("expected argument in word directive", tok)
-            elif len(tok.operands) > 1:
-                raise AsmSyntaxError("unexpected arguments in word directive", tok)
             value = make_expr(tok.operands[0]).evaluate(labels, tok) & 0xffff
 
             hi = value >> 8
             lo = value & 0xff
 
-            yield Token(f"  .byte {hi}", tok.path, tok.lineno)
-            yield Token(f"  .byte {lo}", tok.path, tok.lineno)
+            yield Token.using(f"  .byte {hi}", tok)
+            yield Token.using(f"  .byte {lo}", tok)
             continue
+
+        elif tok.directive == "asciiz":
+            assert not isinstance(tok.operands[0], Expression)
+            for c in tok.operands[0][1:][:-1] + "\0":
+                yield Token.using(f"  .byte {ord(c)}", tok)
 
         else:
             # we can discard labels and constants now
@@ -551,6 +571,7 @@ def extend_with_word(binary: bytearray, word: int) -> None:
     # big endian
     binary.extend([word >> 8, word & 0xff])
 
+# - turn a program into an actual binary
 def assemble(source: str, path: str="<unknown>") -> bytearray:
     binary = bytearray()
 
@@ -564,16 +585,17 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
 
     return binary
 
+# - emulate a binary
 class Emulate:
     def __init__(self, image: bytearray) -> None:
         if len(image) > 0x8000:
             raise AsmRomError("program too large to fit into 32K.")
 
-        self.rom = image.copy()
+        self.rom: bytearray = image.copy()
         self.rom.extend(b'\00' * (0x8000 - len(image)))
-        self.ram = bytearray(0x8000)
+        self.ram: bytearray = bytearray(0x8000)
 
-        self.pc = 0x8000
+        self.pc: int = 0x8000
 
         while self.pc != 0xfffe:
             self.execute()
@@ -616,7 +638,8 @@ class Emulate:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-            prog="s6asm")
+            prog="s6asm",
+            description="A macro assembler for S6 assembly language.")
 
     parser.add_argument("program", type=Path)
 

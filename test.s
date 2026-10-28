@@ -1,17 +1,11 @@
   .include <stdlib>
 
-  .const l 0x0000
-  .const u 0x0001
-  .const i 0x0002
+  .const c 0x0000
 
-  mov #'A' u
-  mov #'a' l
-  mov #26  i
-alphabet:
-  out u
-  inc u
-  out l
-  inc l
-  out #0x20
-  djnz i alphabet
+  mov #'A' c
+print:
+  out c
   halt
+
+message:
+  .asciiz "Hello, world!"
