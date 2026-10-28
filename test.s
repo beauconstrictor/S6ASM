@@ -1,11 +1,16 @@
   .include <stdlib>
 
-  .const c 0x0000
-
-print:
-  mov (message 1 +)c
-  out c
-  halt
-
-message:
-  .asciiz "Hello, world!"
+  mov 1010 2020
+; 
+;   .const c 0x0000
+; 
+; print:
+;   ld message_addr c
+;   out c
+;   halt
+; 
+; message_addr:
+;   .word message
+; 
+; message:
+;   .asciiz "Hello, world!"

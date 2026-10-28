@@ -6,9 +6,9 @@
   .const halt 0xfffe
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
-  .const z 0x7f00
-
-  .const ijp  0x7f01
+  .const z 0x7f00    ; 1B
+  .const ijp  0x7f01 ; 6B
+  .const ld   0x7f07 ; 6B
 
   .macro clear x
     subleq x x done
@@ -68,6 +68,13 @@ done:
     subleq #1 x done
     jmp y
 done:
+  .endmacro
+
+  ; read what a points to and store it in x
+  .macro ld a x
+    ; 1. put a mov _ x in memory
+    ; 2. mov a _
+    ; 3. mov (a 1 +) (_ 1 +)
   .endmacro
 
 _start:
