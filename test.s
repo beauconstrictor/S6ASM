@@ -2,8 +2,9 @@
 
   .const c 0x0000
 
-  mov #'A' c
+  mov message c
 print:
+  add #4 c
   out c
   halt
 

@@ -474,6 +474,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
         if tok.a is not None:
             pc += 6
+
+        if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
+            raise AsmSyntaxError(f"unknown directive: '{tok.directive}'", tok)
+
         elif tok.directive == "org":
             if tok.label:
                 raise AsmOriginError("cannot apply a label to an org directive", tok)
@@ -515,12 +519,6 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     emitted = 0
 
     for tok in tokens:
-        # all these directives are verified as correct in
-        # find_labels, so we can just use them here
-
-        if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
-            raise AsmSyntaxError(f"unknown directive: '{tok.directive}'", tok)
-
         if tok.directive == "org":
             target = make_expr(tok.operands[0]).evaluate(labels, tok)
 
@@ -543,9 +541,11 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
 
         elif tok.directive == "byte":
             tok.operands = [Expression(str(make_expr(tok.operands[0]).evaluate(labels, tok)))]
+            emitted += 1
 
         elif tok.directive == "word":
             value = make_expr(tok.operands[0]).evaluate(labels, tok) & 0xffff
+            emitted += 2
 
             hi = value >> 8
             lo = value & 0xff
@@ -556,8 +556,10 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
 
         elif tok.directive == "asciiz":
             assert not isinstance(tok.operands[0], Expression)
-            for c in tok.operands[0][1:][:-1] + "\0":
+            s = tok.operands[0][1:][:-1] + "\0"
+            for c in :
                 yield Token.using(f"  .byte {ord(c)}", tok)
+            emitted += len(s)
 
         else:
             # we can discard labels and constants now
