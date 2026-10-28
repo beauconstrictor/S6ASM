@@ -633,7 +633,7 @@ class Emulate:
         r = (self.fetch(b) - self.fetch(a)) & 0xff
         self.write(b, r)
 
-        if r == 0 | (r & 0x80):
+        if r == 0 or (r & 0x80):
             self.pc = c
 
 def main() -> None:
