@@ -557,7 +557,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
         elif tok.directive == "asciiz":
             assert not isinstance(tok.operands[0], Expression)
             s = tok.operands[0][1:][:-1] + "\0"
-            for c in :
+            for c in s:
                 yield Token.using(f"  .byte {ord(c)}", tok)
             emitted += len(s)
 

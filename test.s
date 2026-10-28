@@ -4,7 +4,6 @@
 
   mov message c
 print:
-  add #4 c
   out c
   halt
 
