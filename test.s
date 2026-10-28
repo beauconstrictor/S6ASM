@@ -2,8 +2,8 @@
 
   .const c 0x0000
 
-  mov message c
 print:
+  mov (message 1 +)c
   out c
   halt
 

@@ -158,7 +158,7 @@ class Literal:
             if labels is not None and labels.get(s) is not None:
                 return labels[s]
 
-        raise AsmSyntaxError(f"unsupported expression form: '{s}'", token)
+        raise AsmSyntaxError(f"unsupported expression form: {s!r}", token)
 
     def substitute(self, label: str, new_value: str) -> None:
         if self.text != label: return
@@ -294,7 +294,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
         raise AsmSyntaxError(f"undefined macro: {tok.macro}", tok)
 
     if len(tok.operands) != len(macro.parameters):
-        raise AsmSyntaxError("incorrect macro argument count", tok)
+        raise AsmSyntaxError(f"{macro.name!r} expected {len(macro.parameters)} parameters, got {len(tok.operands)}", tok)
 
     suffix = f"___macro{macro_invocation_idx}"
     macro_invocation_idx += 1
@@ -422,7 +422,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             
 
             if not file.is_file():
-                raise AsmIncludeError(f"file '{file}' could not be found", tok)
+                raise AsmIncludeError(f"file {file!r} could not be found", tok)
             yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=path, allow_stdlib=False)
 
         # part of a macro definition
@@ -476,7 +476,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             pc += 6
 
         if tok.directive and tok.directive not in ALLOWED_DIRECTIVES:
-            raise AsmSyntaxError(f"unknown directive: '{tok.directive}'", tok)
+            raise AsmSyntaxError(f"unknown directive: {tok.directive!r}", tok)
 
         elif tok.directive == "org":
             if tok.label:
