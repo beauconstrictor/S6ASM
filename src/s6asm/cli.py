@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from os import getenv
 from enum import Enum
 from pathlib import Path
 from itertools import chain
@@ -25,8 +26,11 @@ BRACKET_CHARS = ("(", ")", ";")
 
 class AsmError(Exception):
     def __init__(self, message: str, token: Token|None=None) -> None:
-        if token:
-            super().__init__(f"{token.path}:{token.lineno}: {message}")
+        self.message: str = message
+        self.location: str|None = None
+        if token is not None:
+            self.location = f"{token.path}:{token.lineno}"
+            super().__init__(f"{self.location}: {message}")
         else:
             super().__init__(message)
 
@@ -197,8 +201,10 @@ class Operation(Enum):
     DIV = "/"
     LSR = ">>"
     LSL = "<<"
-    XOR = "^"
     MOD = "%"
+    AND = "&"
+    OR  = "|"
+    XOR = "^"
 
     @override
     def __str__(self) -> str:
@@ -206,13 +212,10 @@ class Operation(Enum):
 
 class Expression:
     def __init__(self, text: str) -> None:
-        self.tokens: list[Literal|Operation] = []
-
-        for word in text.split():
-            if word in {op.value for op in Operation}:
-                self.tokens.append(Operation(word))
-            else:
-                self.tokens.append(Literal(word))
+        self.tokens: list[Literal|Operation] = [Operation(word)
+                                                if word in {op.value for op in Operation}
+                                                else Literal(word)
+                                                for word in text.split()]
 
     def evaluate(self, labels: dict[str, int]|None=None, token: Token|None=None) -> int:
         stack: list[int] = []
@@ -244,6 +247,7 @@ class Expression:
                             stack.append(a ^ b)
                         case Operation.MOD:
                             stack.append(a % b)
+
         except ZeroDivisionError:
             raise AsmExpressionError("division by zero", token)
 
@@ -675,6 +679,12 @@ class Emulator:
     def run_until_halt(self) -> None:
         while self.step(): pass
 
+def error(summary: object, desc: object="") -> None:
+    red = "\033[31m" if stderr.isatty() and not getenv("NO_COLOR") else ""
+    yellow = "\033[33m" if red else ""
+    reset = "\033[0m" if red else ""
+    print(f"{red}s6asm: {yellow}{summary if desc else ''}{': ' if desc else ''}{reset}{desc if desc else summary}", file=stderr)
+
 def main() -> None:
     parser = ArgumentParser(
             prog="s6asm",
@@ -700,7 +710,17 @@ def main() -> None:
                       help="execute the program using a built-in S6 emulator.")
 
     args = parser.parse_args()
-    file = args.program.read_text(encoding="utf-8")
+    try:
+        file = args.program.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        error("no such file or directory", repr(str(args.program)))
+        parser.exit(1)
+    except PermissionError:
+        error("no such file or directory", repr(str(args.program)))
+        parser.exit(1)
+    except OSError as e:
+        error(str(e))
+        parser.exit(1)
     path = str(args.program)
 
     try:
@@ -717,13 +737,15 @@ def main() -> None:
             Emulator(assemble(file, path)).run_until_halt()
         elif args.assembler:
             stdout.buffer.write(assemble(file, path))
-    except (AsmError, NotImplementedError) as e:
-        if args.debug:
-            raise e
-        else:
-            parser.error(str(e))
-    except KeyboardInterrupt as e:
-        print("interrupt.", file=stderr)
+    except AsmError as e:
+        if args.debug: raise
+        if e.location: error(e.location, e.message)
+        else: error(e.message) 
+    except NotImplementedError as e:
+        error(e)
+        parser.exit(1)
+    except KeyboardInterrupt:
+        error("interrupt.")
 
 if __name__ == "__main__":
     main()
