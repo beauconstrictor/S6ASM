@@ -443,6 +443,9 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         else:
             yield tok
 
+    if immediates:
+        yield from generate_immediates()
+
     if current_macro is not None:
         raise AsmSyntaxError("macro definition is unterminated", macro_definition)
 
@@ -506,24 +509,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     return labels
 
-def find_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator[str]:
-    found = set()
-
-    for tok in tokens:
-        for exp in (*tok.operands, tok.a, tok.b, tok.c):
-            if not isinstance(exp, Expression): continue
-            for literal in exp.tokens:
-                if not isinstance(literal, Literal): continue
-                if not literal.text.startswith("#"): continue
-                value = Expression(literal.text[1:]).evaluate(labels, tok)
-                if value in found: continue
-                yield literal.text[1:]
-
 # - remove all labels and expressions from the program
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
-    # immediates = find_immediates(tokens, labels)
 
     initial_origin = None
     emitted = 0
