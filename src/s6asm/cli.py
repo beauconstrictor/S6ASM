@@ -464,7 +464,6 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
     line = 0
     for value, exps in immediates.items():
         for exp in exps:
-            labels[f"{exp}"] = value
             yield Token(f"({exp}):", "immediates", line := line + 1)
         yield Token(f"  .byte {value}", "immediates", line := line + 1)
 
@@ -533,6 +532,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
     tokens += list(generate_immediates(tokens, labels))
+    labels = find_labels(tokens)
 
     initial_origin = None
     emitted = 0
