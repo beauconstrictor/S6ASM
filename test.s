@@ -4,7 +4,7 @@
   .const i 0x0000
 
   mov #26 i
-  mov #'A' c
+  mov #('B' 1 -) c
 loop:
   out  c
   inc  c

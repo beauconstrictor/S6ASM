@@ -534,9 +534,6 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     labels = find_labels(tokens)
     tokens += list(generate_immediates(tokens, labels))
 
-    yield from tokens
-    return
-
     initial_origin = None
     emitted = 0
 

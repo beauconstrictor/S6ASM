@@ -156,6 +156,13 @@ done:
 
 It is worth nothing that labls are macro-local. This means that you can reuse the same label name in multiple macros, and use a single macro more than once. None of these will cause a name collision. This is because, under the hood, the assembler actually changes the name of labels when expanding macros to ensure that they stay unique.
 
+### Tokenisation
+
+When a line of assembly is being tokenised, it is first split into *words*. The position of these words then indicates it's meaning (i.e. a label, a directive, an operand, etc.). Ordinarily, words are simply separated by spaces, but there are 3 special characters that change this:
+
+- `(` & `)` - Between two parentheses, spaces do not delimit words, and the parentheses themselves are not included in the words. This means a line like `(2 1 +) (3 4)` will become two words: `2 1 +` and `3 4`.
+- `'` - Between two quotes, spaces do not delimit words, but the spaces are still included in the word. This means a line like `(#' ' 3 +)` will become the single word `#' ' 3 +`.
+
 ## The Standard Library
 
 The standard library, included with `  .include <stdlib>`, provides a comprehensive set of macros that make development for the S6 feel more like developing for a conventional 8-bit computer.
