@@ -13,6 +13,8 @@ from importlib.metadata import version
 from typing import override, Self, final
 from collections.abc import Iterator, Iterable, Sequence
 
+# TODO: unary operators in expressions, like !
+
 ALLOWED_DIRECTIVES = {
         "org",
         "byte",
