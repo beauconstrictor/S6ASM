@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from sys import stdout
 from pathlib import Path
 from itertools import chain
+from sys import stdout, stderr
 from dataclasses import dataclass
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -568,7 +568,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             emitted += 1
 
         elif tok.directive == "word":
-            value = make_expr(tok.operands[0]).evaluate(labels, tok) & 0xffff
+            value = make_expr(tok.operands[0]).evaluate(labels, tok)
             emitted += 2
 
             if -32768 <= value <= -1:
@@ -714,6 +714,8 @@ def main() -> None:
             raise e
         else:
             parser.error(str(e))
+    except KeyboardInterrupt as e:
+        print("interrupt.", file=stderr)
 
 if __name__ == "__main__":
     main()
