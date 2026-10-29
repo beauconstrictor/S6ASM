@@ -1,16 +1,12 @@
   .include <stdlib>
 
-  mov 1010 2020
-; 
-;   .const c 0x0000
-; 
-; print:
-;   ld message_addr c
-;   out c
-;   halt
-; 
-; message_addr:
-;   .word message
-; 
-; message:
-;   .asciiz "Hello, world!"
+  .const c 0x0000
+  .const i 0x0000
+
+  mov #26 i
+  mov #'A' c
+loop:
+  out  c
+  inc  c
+  djnz i loop
+  halt

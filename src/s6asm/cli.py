@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import sys
-import argparse
 from enum import Enum
+from sys import stdout
 from pathlib import Path
+from itertools import chain
 from dataclasses import dataclass
+from argparse import ArgumentParser
+from collections import defaultdict
 from importlib.resources import files
 from importlib.metadata import version
 from typing import override, Self, final
@@ -18,6 +20,8 @@ ALLOWED_DIRECTIVES = {
         "macro",
         "asciiz",
         "endmacro"}
+
+BRACKET_CHARS = ("(", ")")
 
 class AsmError(Exception):
     def __init__(self, message: str, token: Token|None=None) -> None:
@@ -34,26 +38,36 @@ class AsmRecursionError(AsmError): ...
 class AsmWordWidthError(AsmError): ...
 class AsmExpressionError(AsmError): ...
 
+def bracketise(s: object) -> str:
+    s = str(s)
+    if any(c.isspace() or c in BRACKET_CHARS for c in s): return f"({s})"
+    return s
+
 # [label:] [(macro|.directive) [operands]...|subleq a b c]
 class Token:
     def __init__(self, line: str, path: str="<unknown>", lineno: int=-1) -> None:
+        self.path:   str = path
+        self.lineno: int = lineno
+
         acc = ""
         words: list[str] = []
-        in_paren = False
+        parens = 0
         in_quote = False
 
         for c in line + " ":
-            if c == "(" and not in_paren and not in_quote:
-                in_paren = True
+            if c == "(" and not in_quote:
+                parens += 1
                 continue
-            if c == ")" and in_paren and not in_quote:
-                in_paren = False
+            if c == ")" and not in_quote:
+                parens -= 1
+                if parens < 0:
+                    raise AsmSyntaxError("unbalanced parantheses", self)
                 continue
             if c in ("'", '"'):
                 in_quote = not in_quote
-            if c == ";" and not in_quote and not in_paren:
+            if c == ";" and not in_quote and not parens:
                 break
-            if c.isspace() and not in_quote and not in_paren:
+            if c.isspace() and not in_quote and not parens:
                 if acc:
                     words.append(acc)
                 acc = ""
@@ -61,10 +75,10 @@ class Token:
 
             acc += c
 
-        words = [w.strip() for w in words]
+        if parens > 0:
+            raise AsmSyntaxError("unbalanced parentheses", self)
 
-        self.path:   str = path
-        self.lineno: int = lineno
+        words = [w.strip() for w in words]
 
         self.label:     str|None = None
 
@@ -107,6 +121,10 @@ class Token:
     def using(line: str, tok: Token) -> Token:
         return Token(line, tok.path, tok.lineno)
 
+    def is_empty(self) -> bool:
+        return not any((self.a, self.b, self.c)) and not self.directive \
+                and not self.macro and not self.label
+
     def duplicate(self) -> Self:
         tok           = type(self)("")
         tok.label     = self.label
@@ -123,23 +141,23 @@ class Token:
     @override
     def __repr__(self) -> str:
         s = ""
-        if self.label is not None: s += f"{self.label}: "
+        if self.label is not None: s += f"{bracketise(self.label)}: "
         else: s += "  "
 
         if self.directive is not None:
-            s += f".{self.directive} "
+            s += f".{bracketise(self.directive)} "
 
         elif self.macro is not None:
-            s += f"{self.macro} "
+            s += f"{bracketise(self.macro)} "
 
         elif self.a is not None:
             s += f"subleq {self.a!r} {self.b!r} {self.c!r}"
 
         if self.operands:
             for o in self.operands:
-                s += f"{o} "
+                s += f"{bracketise(o)} "
 
-        s += f" ; [{self.path}:{self.lineno}]"
+        s += f" ; <{self.path}:{self.lineno}>"
         return s
 
 class Literal:
@@ -158,7 +176,7 @@ class Literal:
             if labels is not None and labels.get(s) is not None:
                 return labels[s]
 
-        raise AsmSyntaxError(f"unsupported expression form: {s!r}", token)
+        raise AsmSyntaxError(f"{s!r} is undefined", token)
 
     def substitute(self, label: str, new_value: str) -> None:
         if self.text != label: return
@@ -169,7 +187,7 @@ class Literal:
 
     @override
     def __str__(self) -> str:
-        return self.text
+        return bracketise(self.text)
 
 @final
 class Operation(Enum):
@@ -181,6 +199,10 @@ class Operation(Enum):
     LSL = "<<"
     XOR = "^"
     MOD = "%"
+
+    @override
+    def __str__(self) -> str:
+        return self.value
 
 class Expression:
     def __init__(self, text: str) -> None:
@@ -261,12 +283,13 @@ class Expression:
 
     @override
     def __repr__(self) -> str:
-        return f"({' '.join(str(tok) for tok in self.tokens)}) "
+        return f"{bracketise(' '.join(str(tok) for tok in self.tokens))} "
 
 def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
     for i, l in enumerate(source.splitlines(), start=1):
         if not l.strip(): continue
-        yield Token(l, path, i)
+        tok = Token(l, path, i)
+        if not tok.is_empty(): yield tok
 
 def make_expr(s: str | Expression) -> Expression:
     if isinstance(s, Expression): return s
@@ -333,36 +356,13 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
             if subtok.b is not None: subtok.b.substitute(p, tok.operands[i])
             if subtok.c is not None: subtok.c.substitute(p, tok.operands[i])
 
-        if subtok.macro is not None:
-            yield from expand_single_macro(subtok, macros)
-        else:
+        if subtok.macro is None:
             yield subtok
+        else:
+            yield from expand_single_macro(subtok, macros)
 
 def is_printable_ascii(c: int) -> bool:
     return 32 <= c <= 126
-
-def generate_immediates() -> Iterator[Token]:
-    labels: set[str] = set()
-
-    def make_tok(l: str) -> Iterator[Token]:
-        if l in labels: return
-        labels.add(l)
-        yield Token(l, "stdlib", -1)
-
-    for i in range(0x100):
-        if is_printable_ascii(i) and chr(i) not in ("'"):
-            yield from make_tok(f"#'{chr(i)}':")
-
-        for prefix, max_width in (("x", 2), ("b", 8)):
-            for w in range(1, max_width + 1):
-                l = f"#0{prefix}{i:0{w}{prefix}}:"
-                yield from make_tok(l)
-
-        for w in range(1,4):
-            l = f"#{i:0{w}d}:"
-            yield from make_tok(l)
-
-        yield from make_tok(f"  .byte {i}")
 
 # - recursively expand macros to their contents
 # - insert contents of includes
@@ -370,8 +370,6 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
     if macros is None: macros = {}
     current_macro = None
     macro_definition = None
-
-    immediates = False
 
     for tok in tokenise(source, path):
         if tok.directive == "macro":
@@ -413,16 +411,15 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             path = ident[1:-1]
 
             if stdlib and not allow_stdlib:
-                raise AsmIncludeError("cannot include <stdlib> outside of the root file", tok)
+                raise AsmIncludeError("cannot include the stdlib outside of the root file", tok)
             elif stdlib:
-                if path == "stdlib": immediates = True
                 file = files("s6asm").joinpath("stdlib", path + ".s")
             else:
                 file = Path(tok.path).parent / Path(path)
             
 
             if not file.is_file():
-                raise AsmIncludeError(f"file {file!r} could not be found", tok)
+                raise AsmIncludeError(f"no such file {file!r}", tok)
             yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=path, allow_stdlib=False)
 
         # part of a macro definition
@@ -437,17 +434,39 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             try:
                 yield from expand_single_macro(tok, macros)
             except RecursionError:
-                raise AsmRecursionError("macro recursion too deep", tok)
+                raise AsmRecursionError("macro recurses", tok)
 
         # instruction/label/directive
         else:
             yield tok
 
-    if immediates:
-        yield from generate_immediates()
-
     if current_macro is not None:
-        raise AsmSyntaxError("macro definition is unterminated", macro_definition)
+        raise AsmSyntaxError("unterminated macro definition", macro_definition)
+
+def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator[Token]:
+    immediates: defaultdict[int, set[str]] = defaultdict(set)
+
+    for tok in tokens:
+        for exp in chain(tok.operands, (tok.a, tok.b, tok.c)):
+            if not isinstance(exp, Expression): continue
+            if len(exp.tokens) < 1: continue
+           
+            s = str(exp).strip()[1:-1].strip() # remove surrounding parens
+            if not s.startswith("#"): continue
+
+            value = Expression(s[1:]).evaluate(labels, tok)
+            if -128 <= value <= -1:
+                value &= 0xff
+            if not (0 <= value <= 255):
+                raise AsmExpressionError(f"{exp!r} is out of range for an 8-bit value", tok)
+            immediates[value].add(s)
+
+    line = 0
+    for value, exps in immediates.items():
+        for exp in exps:
+            labels[f"{exp}"] = value
+            yield Token(f"({exp}):", "immediates", line := line + 1)
+        yield Token(f"  .byte {value}", "immediates", line := line + 1)
 
 def ensure_args(tok: Token, count: int) -> None:
     if len(tok.operands) == count - 1:
@@ -513,6 +532,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(expand_macros(source, path=path))
     labels = find_labels(tokens)
+    tokens += list(generate_immediates(tokens, labels))
+
+    yield from tokens
+    return
 
     initial_origin = None
     emitted = 0
@@ -539,12 +562,22 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             emitted += 6
 
         elif tok.directive == "byte":
-            tok.operands = [Expression(str(make_expr(tok.operands[0]).evaluate(labels, tok)))]
+            value = make_expr(tok.operands[0]).evaluate(labels, tok)
+            if -128 <= value <= -1:
+                value &= 0xff
+            if not (0 <= value <= 255):
+                raise AsmExpressionError(f"{value!r} out of range for an 8-bit expression", tok)
+            tok.operands = [Expression(str(value))]
             emitted += 1
 
         elif tok.directive == "word":
             value = make_expr(tok.operands[0]).evaluate(labels, tok) & 0xffff
             emitted += 2
+
+            if -32768 <= value <= -1:
+                value &= 0xffff
+            if not (0 <= value <= 65535):
+                raise AsmExpressionError(f"{value!r} out of range for an 8-bit expression", tok)
 
             hi = value >> 8
             lo = value & 0xff
@@ -615,7 +648,7 @@ class Emulate:
 
     def write(self, addr: int, value: int) -> None:
         if addr == 0xfffe:
-            sys.stdout.write(chr(value))
+            stdout.write(chr(value))
         elif addr < 0x8000:
             self.ram[addr] = value
         elif addr < 0x10000:
@@ -638,7 +671,7 @@ class Emulate:
             self.pc = c
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
             prog="s6asm",
             description="A macro assembler for S6 assembly language.")
 
@@ -646,6 +679,8 @@ def main() -> None:
 
     parser.add_argument("-v", "--version", action="version",
                       version=f"%(prog)s {version('s6asm')}")
+    parser.add_argument("-d", "--debug", action="store_true",
+                        help="show python tracebacks")
 
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("-t", "--tokeniser", action="store_true",
@@ -676,9 +711,12 @@ def main() -> None:
         elif args.emulator:
             Emulate(assemble(file, path))
         elif args.assembler:
-            sys.stdout.buffer.write(assemble(file, path))
+            stdout.buffer.write(assemble(file, path))
     except (AsmError, NotImplementedError) as e:
-        parser.error(str(e))
+        if args.debug:
+            raise e
+        else:
+            parser.error(str(e))
 
 if __name__ == "__main__":
     main()
