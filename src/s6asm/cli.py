@@ -56,19 +56,20 @@ class Token:
         acc = ""
         words: list[str] = []
         parens = 0
-        in_quote = False
+        quote: str | None = None
 
         for c in line + " ":
-            if c == "(" and not in_quote:
+            if c == "(" and in_quote is None:
                 parens += 1
                 if parens == 1: continue
-            elif c == ")" and not in_quote:
+            elif c == ")" and in_quote is None:
                 parens -= 1
                 if parens < 0:
                     raise AsmSyntaxError("unbalanced parantheses", self)
                 if parens == 0: continue
             elif c in ("'", '"'):
-                in_quote = not in_quote
+                if quote is None: quote = c
+                elif c == quote: quote = None
             elif c == ";" and not in_quote and not parens:
                 break
             elif c.isspace() and not in_quote and not parens:
@@ -247,6 +248,10 @@ class Expression:
                             stack.append(a ^ b)
                         case Operation.MOD:
                             stack.append(a % b)
+                        case Operation.AND:
+                            stack.append(a & b)
+                        case Operation.OR:
+                            stack.append(a | b)
 
         except ZeroDivisionError:
             raise AsmExpressionError("division by zero", token)
