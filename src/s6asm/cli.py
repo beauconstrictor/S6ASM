@@ -59,10 +59,10 @@ class Token:
         quote: str | None = None
 
         for c in line + " ":
-            if c == "(" and in_quote is None:
+            if c == "(" and quote is None:
                 parens += 1
                 if parens == 1: continue
-            elif c == ")" and in_quote is None:
+            elif c == ")" and quote is None:
                 parens -= 1
                 if parens < 0:
                     raise AsmSyntaxError("unbalanced parantheses", self)
@@ -70,9 +70,9 @@ class Token:
             elif c in ("'", '"'):
                 if quote is None: quote = c
                 elif c == quote: quote = None
-            elif c == ";" and not in_quote and not parens:
+            elif c == ";" and quote is None and not parens:
                 break
-            elif c.isspace() and not in_quote and not parens:
+            elif c.isspace() and quote is None and not parens:
                 if acc:
                     words.append(acc)
                 acc = ""
