@@ -21,7 +21,7 @@ ALLOWED_DIRECTIVES = {
         "asciiz",
         "endmacro"}
 
-BRACKET_CHARS = ("(", ")")
+BRACKET_CHARS = ("(", ")", ";")
 
 class AsmError(Exception):
     def __init__(self, message: str, token: Token|None=None) -> None:
@@ -453,12 +453,13 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
            
             s = str(exp).strip().removeprefix("(").removesuffix(")").strip()
             if not s.startswith("#"): continue
-
+            exp.tokens = [Literal(s)]
+            
             value = Expression(s[1:]).evaluate(labels, tok)
             if -128 <= value <= -1:
                 value &= 0xff
             if not (0 <= value <= 255):
-                raise AsmExpressionError(f"{exp!r} is out of range for an 8-bit value", tok)
+                raise AsmWordWidthError(f"{exp!r} is out of range for an 8-bit value", tok)
             immediates[value].add(s)
 
     line = 0
@@ -563,7 +564,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             if -128 <= value <= -1:
                 value &= 0xff
             if not (0 <= value <= 255):
-                raise AsmExpressionError(f"{value!r} out of range for an 8-bit expression", tok)
+                raise AsmWordWidthError(f"{value!r} out of range for an 8-bit expression", tok)
             tok.operands = [Expression(str(value))]
             emitted += 1
 
@@ -574,7 +575,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             if -32768 <= value <= -1:
                 value &= 0xffff
             if not (0 <= value <= 65535):
-                raise AsmExpressionError(f"{value!r} out of range for an 8-bit expression", tok)
+                raise AsmWordWidthError(f"{value!r} out of range for an 8-bit expression", tok)
 
             hi = value >> 8
             lo = value & 0xff
@@ -617,7 +618,8 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
     return binary
 
 # - emulate a binary
-class Emulate:
+# TOOD: CONSTANTS!
+class Emulator:
     def __init__(self, image: bytearray) -> None:
         if len(image) > 0x8000:
             raise AsmRomError("program too large to fit into 32K.")
@@ -628,9 +630,9 @@ class Emulate:
 
         self.pc: int = 0x8000
 
-        while self.pc != 0xfffe:
-            self.execute()
-    
+    def halted(self) -> bool:
+        return self.pc == 0xfffe
+
     def fetch(self, addr: int) -> int:
         if addr == 0xffff:
             raise NotImplementedError("the integrated emulator does not yet support input")
@@ -653,7 +655,7 @@ class Emulate:
         else:
             raise ValueError("memory write out of range")
 
-    def execute(self) -> None:
+    def step(self) -> bool:
         a = self.fetchw(self.pc)
         self.pc += 2
         b = self.fetchw(self.pc)
@@ -666,6 +668,12 @@ class Emulate:
 
         if r == 0 or (r & 0x80):
             self.pc = c
+       
+        # just for convenience
+        return not self.halted()
+
+    def run_until_halt(self) -> None:
+        while self.step(): pass
 
 def main() -> None:
     parser = ArgumentParser(
@@ -706,7 +714,7 @@ def main() -> None:
             for tok in evaluate(file, path=path):
                 print(tok)
         elif args.emulator:
-            Emulate(assemble(file, path))
+            Emulator(assemble(file, path)).run_until_halt()
         elif args.assembler:
             stdout.buffer.write(assemble(file, path))
     except (AsmError, NotImplementedError) as e:
