@@ -82,6 +82,8 @@ class Token:
 
         if parens > 0:
             raise AsmSyntaxError("unbalanced parentheses", self)
+        if quote is not None:
+            raise AsmSyntaxError("unterminated quote", self)
 
         words = [w.strip() for w in words]
 
