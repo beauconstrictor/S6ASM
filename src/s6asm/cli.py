@@ -451,7 +451,7 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
             if not isinstance(exp, Expression): continue
             if len(exp.tokens) < 1: continue
            
-            s = str(exp).strip()[1:-1].strip() # remove surrounding parens
+            s = str(exp).strip().removeprefix("(").removesuffix(")").strip()
             if not s.startswith("#"): continue
 
             value = Expression(s[1:]).evaluate(labels, tok)
@@ -486,7 +486,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     for tok in tokens:
         if tok.label:
             if tok.label in labels:
-                raise AsmSyntaxError(f"redefinition of label: {tok.label}", tok)
+                raise AsmSyntaxError(f"{tok.label!r} is already defined", tok)
             labels[tok.label] = pc
 
         if tok.a is not None:
@@ -511,7 +511,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             ensure_args(tok, 2)
             assert not isinstance(tok.operands[0], Expression)
             if tok.operands[0] in labels:
-                raise AsmSyntaxError(f"redefinition of label: {tok.label}", tok)
+                raise AsmSyntaxError(f"{tok.operands!r} is already defined", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive == "asciiz":
