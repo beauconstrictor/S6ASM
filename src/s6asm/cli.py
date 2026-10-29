@@ -666,11 +666,11 @@ class Emulator:
 
     def step(self) -> bool:
         a = self.fetchw(self.pc)
-        self.pc += 2
+        self.pc = (self.pc + 2) & 0xffff
         b = self.fetchw(self.pc)
-        self.pc += 2
+        self.pc = (self.pc + 2) & 0xffff
         c = self.fetchw(self.pc)
-        self.pc += 2
+        self.pc = (self.pc + 2) & 0xffff
 
         r = (self.fetch(b) - self.fetch(a)) & 0xff
         self.write(b, r)
