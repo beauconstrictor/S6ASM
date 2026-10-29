@@ -57,17 +57,17 @@ class Token:
         for c in line + " ":
             if c == "(" and not in_quote:
                 parens += 1
-                continue
-            if c == ")" and not in_quote:
+                if parens == 1: continue
+            elif c == ")" and not in_quote:
                 parens -= 1
                 if parens < 0:
                     raise AsmSyntaxError("unbalanced parantheses", self)
-                continue
-            if c in ("'", '"'):
+                if parens == 0: continue
+            elif c in ("'", '"'):
                 in_quote = not in_quote
-            if c == ";" and not in_quote and not parens:
+            elif c == ";" and not in_quote and not parens:
                 break
-            if c.isspace() and not in_quote and not parens:
+            elif c.isspace() and not in_quote and not parens:
                 if acc:
                     words.append(acc)
                 acc = ""
