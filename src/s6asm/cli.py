@@ -647,6 +647,8 @@ class Emulator:
         return self.pc == 0xfffe
 
     def fetch(self, addr: int) -> int:
+        addr &= 0xffff
+
         if addr == 0xffff:
             raise NotImplementedError("the integrated emulator does not yet support input")
         elif addr < 0x8000:
