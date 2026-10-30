@@ -28,6 +28,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
                     raise AsmOriginError("origin directives must come in order", tok)
                 for _ in range(target - initial_origin - emitted):
                     yield Token.using("  .byte 0", tok)
+                    emitted += 1
 
         if initial_origin is None:
             raise AsmOriginError(f"{tok.path}: file must start with an org directive", tok)
