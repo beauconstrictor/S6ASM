@@ -70,8 +70,8 @@ done:
   .macro ld x y
     clear stdlib_tmp1
     ; writes this:
-    ;         *x     0x7f01 0x7f0c
-    ; 0x7f0c: 0x7f00 0x7f00 done
+    ;         *x     0x7f01 0x7f8c
+    ; 0x7f8c: 0x7f00 0x7f00 done
     mov x ld
     mov (x 1 +)            (ld 1 +)
     mov #0x7f              (ld 4 +)

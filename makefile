@@ -1,6 +1,6 @@
 .PHONY: run
 run:
-	s6asm -l test.s
+	s6asm -e test.s
 
 .PHONY: install
 install:

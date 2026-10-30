@@ -1,7 +1,7 @@
   .include <stdlib>
 
-  .const s 0x0000
   .const c 0x0000
+  .const s 0x0001
 
   mov #(1 msg 8 >> *) s
   mov #(1 msg 0xff & *) (s 1 +)
@@ -15,4 +15,5 @@ done:
   halt
 
 msg:
-  .asciiz "Hello, world!"
+  .ascii "Hello, world!"
+  .word 0x0a00
