@@ -21,24 +21,39 @@ macro_invocation_idx = 0
 
 def resolve_local_labels(source: str, path: str="<unknown>") -> Iterator[Token]:
     last_global = None
+    global_in_macro = False
+    in_macro = False
+
+    def ensure_correct(tok: Token) -> None:
+        if not last_global:
+            raise AsmSyntaxError("local label before first global label", tok)
+        if global_in_macro and not in_macro:
+            raise AsmSyntaxError("last global label was within a macro definition", tok)
+        if not global_in_macro and in_macro:
+            raise AsmSyntaxError("last global label was not within a macro definition", tok)
 
     for tok in tokenise(source, path):
+        if tok.directive == "macro":
+            in_macro = True
+        elif tok.directive == "endmacro":
+            in_macro = False
+
         if tok.label:
             if not tok.label.startswith("@"):
                 last_global = tok.label
+                global_in_macro = in_macro
             else:
-                if not last_global:
-                    raise AsmSyntaxError("local label before first global label", tok)
-                else:
-                    tok.label = last_global + tok.label
+                ensure_correct(tok)
+                assert isinstance(last_global, str)
+                tok.label = last_global + tok.label
 
         for exp in chain(tok.operands, (tok.a, tok.b, tok.c)):
             if not isinstance(exp, Expression): continue
             for subtok in exp.tokens:
                 if not isinstance(subtok, Literal): continue
                 if not subtok.text.startswith("@"): continue
-                if not last_global:
-                    raise AsmSyntaxError("local label before first global label", tok)
+                ensure_correct(tok)
+                assert isinstance(last_global, str)
                 subtok.text = last_global + subtok.text
 
         yield tok
