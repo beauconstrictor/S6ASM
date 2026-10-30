@@ -8,6 +8,8 @@ from collections.abc import Iterable, Iterator
 from .errs import *
 from .tokeniser import make_expr, tokenise, Token, Expression, Literal
 
+# TODO: record the original location in the macro definition as well
+
 @dataclass
 class Macro:
     tokens: list[Token]
@@ -159,7 +161,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         # part of a macro definition
         elif current_macro:
             if tok.directive:
-                raise AsmSyntaxError("directives are not allowed inside macros")
+                raise AsmSyntaxError("directives are not allowed inside macros", tok)
             current_macro.tokens.append(tok)
             if tok.label: current_macro.labels.add(tok.label)
 
@@ -245,7 +247,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             ensure_args(tok, 2)
             assert not isinstance(tok.operands[0], Expression)
             if tok.operands[0] in labels:
-                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined")
+                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive == "asciiz" or tok.directive == "ascii":
