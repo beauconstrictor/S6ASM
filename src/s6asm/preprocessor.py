@@ -55,7 +55,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
     if len(tok.operands) != len(macro.parameters):
         raise AsmSyntaxError(f"{macro.name!r} expected {len(macro.parameters)} parameters, got {len(tok.operands)}", tok)
 
-    suffix = f"___macro{macro_invocation_idx}"
+    prefix = f"{tok.macro}/{macro_invocation_idx}@"
     macro_invocation_idx += 1
 
     for subtok in macro.tokens:
@@ -64,7 +64,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
         subtok.lineno = tok.lineno
 
         # macro local labels
-        if subtok.label: subtok.label += suffix
+        if subtok.label: subtok.label = prefix + subtok.label
 
         if subtok.directive:
             raise AsmSyntaxError("cannot use directives inside macros", subtok)
@@ -72,12 +72,12 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
         for i, o in enumerate(subtok.operands):
             for l in macro.labels:
                 if isinstance(o, str): continue
-                o.substitute(l, l + suffix)
+                o.substitute(l, prefix + l)
 
         for l in macro.labels:
             for i in (subtok.a, subtok.b, subtok.c):
                 if i is None: continue
-                i.substitute(l, l + suffix)
+                i.substitute(l, prefix + l)
 
         # macro parameters
         for i, o in enumerate(subtok.operands):
