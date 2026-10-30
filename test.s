@@ -8,5 +8,5 @@
 loop:
   out c
   inc c
-  djgt i loop
+  dbgt i loop
   halt

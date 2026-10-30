@@ -1,14 +1,18 @@
   .org 0x8000 
 
-; constants
+  ; MEMORY MAP
   .const in 0xffff
   .const out 0xfffe
   .const halt 0xfffe
+
+  ; REGISTERS
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
   .const z 0x7f00    ; 1B
   .const ijp  0x7f01 ; 6B
   .const ld   0x7f07 ; 6B
+
+  ; FUNDAMENTAL OPERATIONS
 
   ; stores in y
   .macro sub x y
@@ -41,10 +45,6 @@ done:
     add x y
   .endmacro
 
-  .macro out x
-    add x out
-  .endmacro
-
   .macro jmp x
     subleq z z x
   .endmacro
@@ -58,16 +58,40 @@ done:
     jmp _ijp
   .endmacro
 
-  .macro halt
-    jmp halt
+  ; BRANCHING OPERATIONS
+
+  ; jumps to y if x is <= zero
+  .macro ble x y
+    subleq #0 x y
+  .endmacro
+  
+  ; jumps to y if x is > zero
+  .macro bgt x y
+    ble x done
+    jmp y
+done:
   .endmacro
 
-  ; decrements x, then jumps to y if x is greater than zero
-  .macro djgt x y
+  ; decrements x, then branches to y if x is greater than zero
+  .macro dbgt x y
+    ; could implement this using dec and bgt, but it would be bigger
+    ; than necessary
     subleq #1 x done
     jmp y
 done:
   .endmacro
+
+  ; SPECIAL OEPRATIONS
+
+  .macro halt
+    jmp halt
+  .endmacro
+
+  .macro out x
+    add x out
+  .endmacro
+
+  ; SETUP CODE
 
 _start:
   ; a jmp instruction is effectively 0x7f00 0x7f00 0xADDR
