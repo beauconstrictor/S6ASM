@@ -1,0 +1,23 @@
+from typing import Protocol
+
+class HasLocation(Protocol):
+    path: str
+    lineno: int
+
+class AsmError(Exception):
+    def __init__(self, message: str, token: HasLocation|None=None) -> None:
+        self.message: str = message
+        self.location: str|None = None
+        if token is not None:
+            self.location = f"{token.path}:{token.lineno}"
+            super().__init__(f"{self.location}: {message}")
+        else:
+            super().__init__(message)
+
+class AsmRomError(AsmError): ...
+class AsmSyntaxError(AsmError): ...
+class AsmOriginError(AsmError): ...
+class AsmIncludeError(AsmError): ...
+class AsmRecursionError(AsmError): ...
+class AsmWordWidthError(AsmError): ...
+class AsmExpressionError(AsmError): ...
