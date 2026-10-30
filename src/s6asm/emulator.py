@@ -34,7 +34,6 @@ class Emulator:
         addr &= 0xffff
 
         if addr == SERI:
-            print("read!")
             return ord(readc() or '\0')
         elif within(addr, RAM):
             return self.ram[addr]

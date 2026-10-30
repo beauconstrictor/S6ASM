@@ -12,6 +12,7 @@ ALLOWED_DIRECTIVES = {
         None,
         "org",
         "res",
+        "bank",
         "byte",
         "word",
         "const",

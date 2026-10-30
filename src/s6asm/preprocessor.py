@@ -290,6 +290,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             labels[name] = allocator
             allocator += size
 
+        elif tok.directive == "bank":
+            ensure_args(tok, 1)
+            allocator = make_expr(tok.operands[0]).evaluate(labels, tok)
+
     return labels
 
 def preprocessor(source: str, path: str="<unknown>") -> Iterator[Token]:

@@ -11,12 +11,14 @@
 
   ; increasing layers of macros have to use the registers increasingly
   ; low in this list
-  .const stdlib_zero 0x7f00    ; 1B
-  .const stdlib_tmp1 0x7f01    ; 1B
-  .const stdlib_tmp2 0x7f02    ; 1B
+  .bank 0x7f00
+  .res 1 stdlib_zero
+  .res 1 stdlib_tmp1
+  .res 1 stdlib_tmp2
 
   ; SELF-MODIFIERS
-  ;
+  ; i could use bank and res here, but const makes the actual
+  ; addresses clearer, which is good when using them directly
   .const ijp  0x7f80 ; -0x7f85 6B
   .const ld   0x7f86 ; -0x7f82 12B
 
@@ -214,4 +216,5 @@ done:
 freeze:
   jmp freeze
 
+  .bank 0x0000
 _start:
