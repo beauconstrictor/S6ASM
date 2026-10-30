@@ -591,7 +591,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             if -32768 <= value <= -1:
                 value &= 0xffff
             if not (0 <= value <= 65535):
-                raise AsmWordWidthError(f"{value!r} out of range for an 8-bit expression", tok)
+                raise AsmWordWidthError(f"{value!r} out of range for an 16-bit expression", tok)
 
             hi = value >> 8
             lo = value & 0xff
