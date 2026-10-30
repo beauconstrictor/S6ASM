@@ -77,7 +77,7 @@ done:
     mov #0x7f              (ld 4 +)
     mov #0x8c              (ld 5 +)
     ; the 1 ... * is a hack to make 'done' get substituted properly
-    ; during acro expansion. live laugh love s6asm
+    ; during macro expansion. live laugh love s6asm
     mov #(1 done 8 >> *)   (ld 10 +)
     mov #(1 done 0xff & *) (ld 11 +)
     jmp ld

@@ -25,6 +25,9 @@ class Emulator:
 
         self.pc: int = ROM[0]
 
+        self.out: str = ""
+        self.writes: set[int] = set()
+
     def halted(self) -> bool:
         return self.pc == HALT
 
@@ -46,9 +49,12 @@ class Emulator:
         addr &= 0xffff
         value &= 0xff
 
+        self.writes.add(addr)
+
         if addr == SERO:
             stdout.write(chr(value))
             stdout.flush()
+            self.out += chr(value)
         elif within(addr, RAM):
             self.ram[addr] = value
         elif within(addr, ROM):
@@ -69,6 +75,6 @@ class Emulator:
 
         if r == 0 or (r & (1 << 7)):
             self.pc = c
-       
+
     def run_until_halt(self) -> None:
         while not self.halted(): self.step()

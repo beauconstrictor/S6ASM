@@ -12,6 +12,25 @@ from .preprocessor import preprocessor
 from .linker import evaluate, assemble
 from .emulator import Emulator
 
+def visualise(emu: Emulator, step: int) -> None:
+    print("\033[2J\033[H", end="")
+
+    print(f"step {step}:")
+    print(f"output: {emu.out}")
+    print("ram:")
+
+    for addr in sorted(emu.writes):
+        print(f"0x{addr:04x} = 0x{emu.fetch(addr):02x}")
+    input()
+
+def debug(emu: Emulator) -> None:
+    step = 1
+    while True:
+        if not emu.halted():
+            emu.step()
+            step += 1
+        visualise(emu, step)
+
 def error(summary: object, desc: object="") -> None:
     red = "\033[31m" if stderr.isatty() and not getenv("NO_COLOR") else ""
     yellow = "\033[33m" if red else ""
@@ -28,7 +47,7 @@ def main() -> None:
 
     parser.add_argument("-v", "--version", action="version",
                       version=f"%(prog)s {version('s6asm')}")
-    parser.add_argument("-d", "--debug", action="store_true",
+    parser.add_argument("--traceback", action="store_true",
                         help="show python tracebacks")
 
     mode = parser.add_mutually_exclusive_group()
@@ -38,10 +57,10 @@ def main() -> None:
                       help="expand macros and includes in the program.")
     mode.add_argument("-l", "--linker", action="store_true",
                       help="convert the program into a series of subleq instructions and byte directives.")
-    mode.add_argument("-a", "--assembler", default=True, action="store_true",
-                      help="assemble the program into a ROM image.")
     mode.add_argument("-e", "--emulator", action="store_true",
                       help="execute the program using a built-in S6 emulator.")
+    mode.add_argument("-d", "--debug", action="store_true",
+                      help="emulate the program and watch what it does, step by step.")
 
     args = parser.parse_args()
     path = str(args.program)
@@ -70,16 +89,25 @@ def main() -> None:
         if args.tokeniser:
             for tok in tokenise(file, path=path):
                 print(tok)
+            return
         elif args.preprocessor:
             for tok in preprocessor(file, path=path):
                 print(tok)
+            return
         elif args.linker:
             for tok in evaluate(file, path=path):
                 print(tok)
-        elif args.emulator:
-            Emulator(assemble(file, path)).run_until_halt()
-        elif args.assembler:
-            stdout.buffer.write(assemble(file, path))
+            return
+
+        binary = assemble(file, path)
+
+        if args.emulator:
+            Emulator(binary).run_until_halt()
+        elif args.debug:
+            emu = Emulator(binary)
+            debug(emu)
+        else:
+            stdout.buffer.write(binary)
     except AsmError as e:
         if args.debug: raise
         if e.location: error(e.location, e.message)

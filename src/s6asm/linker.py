@@ -74,6 +74,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
                     raise AsmSyntaxError(f"{c!r} is not an ASCII character", tok)
                 yield Token.using(f"  .byte {i}", tok)
             emitted += len(s)
+            continue
 
         else:
             # we can discard labels and constants now
