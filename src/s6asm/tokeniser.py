@@ -4,6 +4,8 @@ from collections.abc import Iterator, Sequence
 
 from .errs import *
 
+# TODO: unary operators in expressions, like !
+
 BRACKET_CHARS = ("(", ")", ";")
 
 ALLOWED_DIRECTIVES = {
@@ -240,7 +242,7 @@ class Expression:
         if len(stack) < 1:
             raise AsmSyntaxError("expression is empty", token)
         elif len(stack) > 1:
-            raise AsmSyntaxError("expression returns multiple many values", token)
+            raise AsmSyntaxError("expression returns multiple values", token)
 
         return stack[0]
 

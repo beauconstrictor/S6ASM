@@ -4,8 +4,8 @@ from .errs import *
 from .tokeniser import make_expr, Token, Expression
 from .preprocessor import preprocessor, find_labels
 
-# TODO: unary operators in expressions, like !
 # TODO: local labels with @ sign, scoped to last global label
+
 # - remove all labels and expressions from the program
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     tokens = list(preprocessor(source, path))
@@ -17,6 +17,9 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
     for tok in tokens:
         if tok.directive == "org":
             target = make_expr(tok.operands[0]).evaluate(labels, tok)
+
+            if not (0x0000 <= target <= 0xffff):
+                raise AsmOriginError("origin out of range for 16-bit address space", tok)
 
             if initial_origin is None:
                 initial_origin = target

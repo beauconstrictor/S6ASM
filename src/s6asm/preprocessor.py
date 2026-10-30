@@ -63,7 +63,6 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
                 v = tok.operands[i2]
                 o.substitute(p, v)
     
-
         for i, p in enumerate(macro.parameters):
             if subtok.a is not None: subtok.a.substitute(p, tok.operands[i])
             if subtok.b is not None: subtok.b.substitute(p, tok.operands[i])
