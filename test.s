@@ -8,5 +8,5 @@
 loop:
   out c
   inc c
-  djnz i loop
+  djgt i loop
   halt

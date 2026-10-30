@@ -25,7 +25,7 @@ This sample program prints the uppercase alphabet:
 loop:
   out c
   inc c
-  djnz i loop
+  djgt i loop
   jmp halt
 ```
 

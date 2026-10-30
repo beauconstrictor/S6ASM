@@ -49,7 +49,9 @@ done:
     subleq z z x
   .endmacro
 
-  ; indirect jump to 0x
+  ; doesn't jump to addr, jumps to the address at addr,
+  ; where addr contains the high byte and addr + 1 contains the low
+  ; byte
   .macro ijp addr
     mov (addr) (ijp 4 +)
     mov (addr 1 +) (ijp 5 +)
@@ -61,7 +63,7 @@ done:
   .endmacro
 
   ; decrements x, then jumps to y if x is greater than zero
-  .macro djnz x y
+  .macro djgt x y
     subleq #1 x done
     jmp y
 done:
