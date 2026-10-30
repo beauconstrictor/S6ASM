@@ -5,6 +5,8 @@ from collections.abc import Iterator, Sequence
 from .errs import *
 
 # TODO: unary operators in expressions, like !
+# TODO: substitution doesn't substitute in the first token if it is
+#       an immediate
 
 BRACKET_CHARS = ("(", ")", ";")
 
