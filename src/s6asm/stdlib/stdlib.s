@@ -132,9 +132,9 @@ done:
 
   ; branches to z if x = y
   .macro bcp x y z
-    mov x stdlib_tmp1
-    sub y stdlib_tmp1
-    beq stdlib_tmp1 z
+    mov x stdlib_tmp2
+    sub y stdlib_tmp2
+    beq stdlib_tmp2 z
   .endmacro
 
   ; SPECIAL OEPRATIONS

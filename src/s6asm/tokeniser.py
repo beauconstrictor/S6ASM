@@ -8,6 +8,9 @@ from .errs import *
 # TODO: substitution doesn't substitute in the first token if it is
 #       an immediate
 
+# TODO: unrelated, but use the heading 'the illusion of an
+#       instruction' in your next blog post
+
 BRACKET_CHARS = ("(", ")", ";")
 
 ALLOWED_DIRECTIVES = {
