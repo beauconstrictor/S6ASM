@@ -48,6 +48,7 @@ class Emulator:
 
         if addr == SERO:
             stdout.write(chr(value))
+            stdout.flush()
         elif within(addr, RAM):
             self.ram[addr] = value
         elif within(addr, ROM):

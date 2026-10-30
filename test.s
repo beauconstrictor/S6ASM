@@ -1,12 +1,14 @@
   .include <stdlib>
 
-  .const c 0x0000
   .const i 0x0001
 
-  mov #'a' c
-  mov #26 i
+  mov #0 i
 loop:
-  out c
-  inc c
-  dbgt i loop
-  halt
+  beq i zero
+  out #' '
+  jmp next
+zero:
+  out #'#'
+next:
+  inc i
+  jmp loop
