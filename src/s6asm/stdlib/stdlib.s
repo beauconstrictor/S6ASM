@@ -5,6 +5,8 @@
   .const out 0xfffe
   .const halt 0xfffe
 
+  .const alloc 0x0000
+
   ; REGISTERS
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib

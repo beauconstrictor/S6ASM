@@ -438,6 +438,8 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
 
         # part of a macro definition
         elif current_macro:
+            if tok.directive:
+                raise AsmSyntaxError("directives are not allowed inside macros")
             current_macro.tokens.append(tok)
             if tok.label: current_macro.labels.add(tok.label)
 
@@ -525,8 +527,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
         elif tok.directive == "const":
             ensure_args(tok, 2)
             assert not isinstance(tok.operands[0], Expression)
-            # you are allowed to rewrite consts (so ig they're not
-            # really constants) - this makes for useful macros
+            if tok.operands[0] in labels:
+                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined")
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive == "asciiz" or tok.directive == "ascii":
