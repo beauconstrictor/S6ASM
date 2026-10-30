@@ -17,8 +17,8 @@
 
   ; SELF-MODIFIERS
   ;
-  .const ijp  0x7f80 ; -0x7f05 6B
-  .const ld   0x7f86 ; -0x7f12 12B
+  .const ijp  0x7f80 ; -0x7f85 6B
+  .const ld   0x7f86 ; -0x7f82 12B
 
   ; FUNDAMENTAL OPERATIONS
 
@@ -69,20 +69,22 @@ done:
   ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
   .macro ld x y
     clear stdlib_tmp1
-    clear stdlib_tmp2
-    ; TODO: write this:
-    ;       0xXXXX 0x7f00 next
-    ; next: 0x7f00 0x7f00 done
+    ; writes this:
+    ;         *x     0x7f01 0x7f0c
+    ; 0x7f0c: 0x7f00 0x7f00 done
     mov x ld
-    mov (x 1 +) (ld 1 +)
-    mov #0x7f (ld 2 +)
-    clear (ld 3 +)
-    ; ld 4 & 5 = next
-    mov #0x7f (ld 6 +)
-    clear (ld 7 +)
-    mov #0x7f (ld 8 +)
-    clear (ld 9 +)
+    mov (x 1 +)            (ld 1 +)
+    mov #0x7f              (ld 4 +)
+    mov #0x8c              (ld 5 +)
+    ; the 1 ... * is a hack to make 'done' get substituted properly
+    ; during acro expansion. live laugh love s6asm
+    mov #(1 done 8 >> *)   (ld 10 +)
+    mov #(1 done 0xff & *) (ld 11 +)
+    jmp ld
 done:
+    ; the value we want is now in stdlib_tmp1, negated
+    clear y
+    sub stdlib_tmp1 y
   .endmacro
 
   ; BRANCHING OPERATIONS
@@ -137,3 +139,10 @@ _start:
   clear     (ijp 1 +)
   mov #0x7f (ijp 2 +)
   clear     (ijp 3 +)
+
+  mov #0x7f (ld 2 +)
+  mov #0x01 (ld 3 +)
+  mov #0x7f (ld 6 +)
+  clear     (ld 7 +)
+  mov #0x7f (ld 8 +)
+  clear     (ld 9 +)

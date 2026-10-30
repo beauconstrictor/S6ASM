@@ -1,14 +1,13 @@
   .include <stdlib>
 
-  .const i 0x0001
+  .const c 0x0001
+  
+  ld char_addr c
+  out c
+  halt
 
-  mov #0 i
-loop:
-  beq i zero
-  out #32 
-  jmp next
-zero:
-  out #'#'
-next:
-  inc i
-  jmp loop
+char_addr:
+  .word char
+
+char:
+  .byte 'A'
