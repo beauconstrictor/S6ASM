@@ -734,6 +734,7 @@ def main() -> None:
         except KeyboardInterrupt:
             error("interrupt.")
             return
+        path = "stdin"
     else:
         try:
             file = args.program.read_text(encoding="utf-8")

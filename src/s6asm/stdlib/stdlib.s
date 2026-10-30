@@ -10,28 +10,25 @@
   .const ijp  0x7f01 ; 6B
   .const ld   0x7f07 ; 6B
 
-  .macro clear x
-    subleq x x done
+  ; stores in y
+  .macro sub x y
+    subleq x y done
 done:
+  .endmacro
+
+  .macro clear x
+    sub x x
   .endmacro
 
   ; stores in y
   .macro add x y
     clear z
-    subleq x z negated
-negated:
-    subleq z y done 
-done:
+    sub x z
+    sub z y
   .endmacro
 
   .macro inc x
     add #1 x
-  .endmacro
-
-  ; stores in y
-  .macro sub x y
-    subleq x y done
-done:
   .endmacro
 
   .macro dec x
@@ -63,18 +60,11 @@ done:
     jmp halt
   .endmacro
 
-  ; decrement x, jump to y
+  ; decrements x, then jumps to y if x is greater than zero
   .macro djnz x y
     subleq #1 x done
     jmp y
 done:
-  .endmacro
-
-  ; read what a points to and store it in x
-  .macro ld a x
-    ; 1. put a mov _ x in memory
-    ; 2. mov a _
-    ; 3. mov (a 1 +) (_ 1 +)
   .endmacro
 
 _start:
