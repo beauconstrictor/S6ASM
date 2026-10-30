@@ -15,8 +15,31 @@ class Macro:
     labels: set[str]
     parameters: list[str]
 
-
 macro_invocation_idx = 0
+
+def resolve_local_labels(source: str, path: str="<unknown>") -> Iterator[Token]:
+    last_global = None
+
+    for tok in tokenise(source, path):
+        if tok.label:
+            if not tok.label.startswith("@"):
+                last_global = tok.label
+            else:
+                if not last_global:
+                    raise AsmSyntaxError("local label before first global label", tok)
+                else:
+                    tok.label = last_global + tok.label
+
+        for exp in chain(tok.operands, (tok.a, tok.b, tok.c)):
+            if not isinstance(exp, Expression): continue
+            for subtok in exp.tokens:
+                if not isinstance(subtok, Literal): continue
+                if not subtok.text.startswith("@"): continue
+                if not last_global:
+                    raise AsmSyntaxError("local label before first global label", tok)
+                subtok.text = last_global + subtok.text
+
+        yield tok
 
 def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]:
     global macro_invocation_idx
@@ -83,7 +106,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
     current_macro = None
     macro_definition = None
 
-    for tok in tokenise(source, path):
+    for tok in resolve_local_labels(source, path):
         if tok.directive == "macro":
             if current_macro:
                 raise AsmSyntaxError("cannot nest macro definitions", tok)
