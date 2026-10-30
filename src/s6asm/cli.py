@@ -106,7 +106,7 @@ class Token:
         if not line[0].isspace():
             self.label = words.pop(0)
             if not self.label.endswith(":"):
-                raise AsmSyntaxError(f"expected ':' after label in {line!r}")
+                raise AsmSyntaxError(f"expected ':' after label in {line!r}", self)
             self.label = self.label[:-1]
             if len(words) == 0:
                 return
@@ -567,7 +567,7 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
                     yield Token.using("  .byte 0", tok)
 
         if initial_origin is None:
-            raise AsmOriginError(f"{tok.path}: file must start with an org directive")
+            raise AsmOriginError(f"{tok.path}: file must start with an org directive", tok)
 
         if tok.a is not None and tok.b is not None and tok.c is not None:
             tok.a = Expression(str(tok.a.evaluate(labels, tok)))
