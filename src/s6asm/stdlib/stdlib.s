@@ -7,12 +7,19 @@
 
   .const alloc 0x0000
 
+  ; ram addresses from 0x7f00 onward are reserved for the stdlib
+
   ; REGISTERS
 
-  ; ram addresses from 0x7f00 onward are reserved for the stdlib
-  .const z 0x7f00    ; 1B
-  .const ijp  0x7f01 ; 6B
-  .const ld   0x7f07 ; 6B
+  ; increasing layers of macros have to use the registers increasingly
+  ; low in this list
+  .const stdlib_zero 0x7f00    ; 1B
+  .const stdlib_tmp1 0x7f01    ; 1B
+
+  ; SELF-MODIFIERS
+  ;
+  .const ijp  0x7f80 ; 6B
+  .const ld   0x7f86 ; 6B
 
   ; FUNDAMENTAL OPERATIONS
 
@@ -28,9 +35,9 @@ done:
 
   ; stores in y
   .macro add x y
-    clear z
-    sub x z
-    sub z y
+    clear stdlib_zero
+    sub x stdlib_zero
+    sub stdlib_zero y
   .endmacro
 
   .macro inc x
@@ -48,7 +55,7 @@ done:
   .endmacro
 
   .macro jmp x
-    subleq z z x
+    subleq stdlib_zero stdlib_zero x
   .endmacro
 
   ; doesn't jump to addr, jumps to the address at addr,
@@ -62,19 +69,29 @@ done:
 
   ; BRANCHING OPERATIONS
 
-  ; jumps to y if x is <= zero
+  ; branches to y if x is <= stdlib_zeroero
   .macro ble x y
     subleq #0 x y
   .endmacro
   
-  ; jumps to y if x is > zero
+  ; branchs to y if x is > stdlib_zeroero
   .macro bgt x y
     ble x done
     jmp y
 done:
   .endmacro
 
-  ; decrements x, then branches to y if x is greater than zero
+  ; branches to y if x == 0
+  .macro beq x y
+    bgt x done
+    mov x stdlib_tmp1
+    inc stdlib_tmp1
+    ble stdlib_tmp1 done
+    jmp y
+done:
+  .endmacro
+
+  ; decrements x, then branches to y if x is greater than stdlib_zeroero
   .macro dbgt x y
     ; could implement this using dec and bgt, but it would be bigger
     ; than necessary
