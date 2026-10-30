@@ -285,7 +285,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             size = make_expr(tok.operands[0]).evaluate(labels, tok)
             name = tok.operands[1]
             assert not isinstance(name, Expression)
-            if tok.operands[0] in labels:
+            if name in labels:
                 raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
             labels[name] = allocator
             allocator += size

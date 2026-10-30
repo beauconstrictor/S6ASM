@@ -128,6 +128,13 @@ done:
 done:
   .endmacro
 
+  ; branches to z if x = y
+  .macro bcp x y z
+    mov x stdlib_tmp1
+    sub y stdlib_tmp1
+    beq stdlib_tmp1 z
+  .endmacro
+
   ; SPECIAL OEPRATIONS
 
   .macro halt
@@ -156,6 +163,16 @@ done:
     inc (x 1 +)
     bne x done
     inc x
+done:
+  .endmacro
+
+  .macro decw x
+    beq x wont_carry
+    dec (x 1 +)
+    dec x
+    jmp done
+wont_carry:
+    dec (x 1 +)
 done:
   .endmacro
 
