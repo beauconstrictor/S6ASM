@@ -4,16 +4,17 @@ from os import getenv
 from enum import Enum
 from pathlib import Path
 from itertools import chain
-from sys import stdout, stderr
 from dataclasses import dataclass
 from argparse import ArgumentParser
 from collections import defaultdict
+from sys import stdout, stderr, stdin
 from importlib.resources import files
 from importlib.metadata import version
 from typing import override, Self, final
 from collections.abc import Iterator, Iterable, Sequence
 
 # TODO: unary operators in expressions, like !
+# TODO: local labels with @ sign, scoped to last global label
 
 ALLOWED_DIRECTIVES = {
         "org",
@@ -116,13 +117,13 @@ class Token:
             self.operands = words[1:]
         elif words[0] == "subleq":
             if len(words) < 4:
-                raise AsmSyntaxError("expected 3 operands")
+                raise AsmSyntaxError("expected 3 operands", self)
             elif len(words) == 4:
                 self.a = Expression(words[1])
                 self.b = Expression(words[2])
                 self.c = Expression(words[3])
             else:
-                raise AsmSyntaxError("unexpected operands")
+                raise AsmSyntaxError("unexpected operands", self)
         else:
             self.macro = words[0]
             self.operands = [Expression(w) for w in words[1:]]
@@ -297,7 +298,7 @@ class Expression:
 
     @override
     def __repr__(self) -> str:
-        return f"{bracketise(' '.join(str(tok) for tok in self.tokens))} "
+        return f"{bracketise(' '.join(str(tok) for tok in self.tokens))}"
 
 def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
     for i, l in enumerate(source.splitlines(), start=1):
@@ -413,7 +414,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
 
         elif tok.directive == "include":
             if len(tok.operands) != 1:
-                raise AsmSyntaxError("incorrect argument count in include directive", tok)
+                raise AsmSyntaxError("missing argument", tok)
 
             ident = tok.operands[0]
             assert not isinstance(ident, Expression)
@@ -422,19 +423,18 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                or (ident[0] == "<" and ident[-1] == ">")):
                 raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
             stdlib = ident[0] == "<"
-            path = ident[1:-1]
+            include_path = ident[1:-1]
 
             if stdlib and not allow_stdlib:
-                raise AsmIncludeError("cannot include the stdlib outside of the root file", tok)
+                raise AsmIncludeError("cannot include standard library files inside an included file", tok)
             elif stdlib:
-                file = files("s6asm").joinpath("stdlib", path + ".s")
+                file = files("s6asm").joinpath("stdlib", include_path + ".s")
             else:
-                file = Path(tok.path).parent / Path(path)
-            
+                file = Path(path).parent / Path(include_path)
 
             if not file.is_file():
-                raise AsmIncludeError(f"no such file {file!r}", tok)
-            yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=path, allow_stdlib=False)
+                raise AsmIncludeError(f"no such file {str(file)!r}", tok)
+            yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=include_path, allow_stdlib=False)
 
         # part of a macro definition
         elif current_macro:
@@ -703,7 +703,8 @@ def error(summary: object, desc: object="") -> None:
 def main() -> None:
     parser = ArgumentParser(
             prog="s6asm",
-            description="A macro assembler for S6 assembly language.")
+            description="A macro assembler for S6 assembly language.",
+            epilog="Use a hyphen instead of a filepath to use stdin.")
 
     parser.add_argument("program", type=Path)
 
@@ -725,18 +726,26 @@ def main() -> None:
                       help="execute the program using a built-in S6 emulator.")
 
     args = parser.parse_args()
-    try:
-        file = args.program.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        error("no such file or directory", repr(str(args.program)))
-        parser.exit(1)
-    except PermissionError:
-        error("no such file or directory", repr(str(args.program)))
-        parser.exit(1)
-    except OSError as e:
-        error(str(e))
-        parser.exit(1)
     path = str(args.program)
+
+    if path == "-":
+        try:
+            file = stdin.read()
+        except KeyboardInterrupt:
+            error("interrupt.")
+            return
+    else:
+        try:
+            file = args.program.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            error("no such file or directory", repr(str(args.program)))
+            parser.exit(1)
+        except PermissionError:
+            error("no such file or directory", repr(str(args.program)))
+            parser.exit(1)
+        except OSError as e:
+            error(str(e))
+            parser.exit(1)
 
     try:
         if args.tokeniser:
@@ -756,6 +765,7 @@ def main() -> None:
         if args.debug: raise
         if e.location: error(e.location, e.message)
         else: error(e.message) 
+        parser.exit(1)
     except NotImplementedError as e:
         error(e)
         parser.exit(1)
