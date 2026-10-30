@@ -1,6 +1,5 @@
-from sys import stdout
-
 from .errs import *
+from .serial import readc, writec
 
 RAM = (0x0000, 0x8000)
 ROM = (0x8000, 0x8000)
@@ -35,7 +34,8 @@ class Emulator:
         addr &= 0xffff
 
         if addr == SERI:
-            raise NotImplementedError("the integrated emulator does not yet support input")
+            print("read!")
+            return ord(readc() or '\0')
         elif within(addr, RAM):
             return self.ram[addr]
         elif within(addr, ROM):
@@ -52,8 +52,7 @@ class Emulator:
         self.writes.add(addr)
 
         if addr == SERO:
-            stdout.write(chr(value))
-            stdout.flush()
+            writec(chr(value))
             self.out += chr(value)
         elif within(addr, RAM):
             self.ram[addr] = value

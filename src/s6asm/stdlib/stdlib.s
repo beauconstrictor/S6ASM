@@ -145,6 +145,23 @@ done:
     add x out
   .endmacro
 
+  ; write an inputted char to x, or 0 if there isn't one
+  ; char is always < 128, so you can use bgt
+  .macro in x
+    mov in x
+  .endmacro
+
+  ; pause and wait for a char
+  .macro pin x
+wait:
+    in x
+    beq x wait
+  .endmacro
+
+  .macro freeze
+    jmp freeze
+  .endmacro
+
   ; 16-BIT HELPERS
 
   ; load the address of label x into y
@@ -178,7 +195,6 @@ done:
 
   ; SETUP CODE
 
-_start:
   ; a jmp instruction is effectively 0x7f00 0x7f00 0xADDR
   ; so we just encode that here in memory, for indirects
   mov #0x7f  ijp
@@ -192,3 +208,10 @@ _start:
   clear     (ld 7 +)
   mov #0x7f (ld 8 +)
   clear     (ld 9 +)
+
+  jmp _start
+
+freeze:
+  jmp freeze
+
+_start:
