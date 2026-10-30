@@ -32,7 +32,7 @@ done:
   .endmacro
 
   .macro inc x
-    add #1 x
+    sub #-1 x
   .endmacro
 
   .macro dec x
