@@ -68,9 +68,9 @@ done:
   .endmacro
 
 _start:
-  ; a jmp instruction is effectively 0x0000 0x0000 0xADDR
+  ; a jmp instruction is effectively 0x7f00 0x7f00 0xADDR
   ; so we just encode that here in memory, for indirects
-  clear ijp
-  clear (ijp 1 +)
-  clear (ijp 2 +)
-  clear (ijp 3 +)
+  mov #0x7f  ijp
+  clear     (ijp 1 +)
+  mov #0x7f (ijp 2 +)
+  clear     (ijp 3 +)
