@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: s6asm
-Version: 1.1.0
-Summary: macro assembler for the SUBLEQ-6
-Requires-Python: >=3.10

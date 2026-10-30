@@ -9,7 +9,7 @@ from importlib.metadata import version
 from .errs import *
 from .tokeniser import tokenise
 from .preprocessor import preprocessor
-from .linker import evaluate
+from .linker import evaluate, assemble
 from .emulator import Emulator
 
 def error(summary: object, desc: object="") -> None:
