@@ -111,6 +111,14 @@ done:
 done:
   .endmacro
 
+  ; branches to y if x != 0
+  .macro bne x y
+    bgt x y
+    mov x stdlib_tmp1
+    inc stdlib_tmp1
+    ble stdlib_tmp1 y
+  .endmacro
+
   ; decrements x, then branches to y if x is greater than stdlib_zeroero
   .macro dbgt x y
     ; could implement this using dec and bgt, but it would be bigger
@@ -145,7 +153,10 @@ done:
   .endmacro
 
   .macro incw x
-
+    inc (x 1 +)
+    bne x done
+    inc x
+done:
   .endmacro
 
   ; SETUP CODE

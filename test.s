@@ -8,7 +8,7 @@ loop:
   ld s c
   ble c done
   out c
-  inc (s 1 +)
+  incw s
   jmp loop
 done:
   halt
