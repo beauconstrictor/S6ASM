@@ -264,6 +264,9 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     return labels
 
 def preprocessor(source: str, path: str="<unknown>") -> Iterator[Token]:
+    global macro_invocation_idx
+    macro_invocation_idx = 0
+
     tokens = list(expand_macros(source, path=path))
     yield from tokens
     labels = find_labels(tokens)
