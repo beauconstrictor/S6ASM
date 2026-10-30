@@ -208,8 +208,7 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
             if not s.startswith("#"): continue
             exp.tokens = [Literal(s)]
            
-            new_exp = Expression("")
-            new_exp.tokens = [Literal(s[1:])]
+            new_exp = Expression(s[1:])
             value = new_exp.evaluate(labels, tok)
             if -128 <= value <= -1:
                 value &= 0xff

@@ -5,7 +5,7 @@
   mov #0 i
 loop:
   beq i zero
-  out #' '
+  out #32 
   jmp next
 zero:
   out #'#'

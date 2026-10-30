@@ -13,11 +13,12 @@
   ; low in this list
   .const stdlib_zero 0x7f00    ; 1B
   .const stdlib_tmp1 0x7f01    ; 1B
+  .const stdlib_tmp2 0x7f02    ; 1B
 
   ; SELF-MODIFIERS
   ;
-  .const ijp  0x7f80 ; 6B
-  .const ld   0x7f86 ; 6B
+  .const ijp  0x7f80 ; -0x7f05 6B
+  .const ld   0x7f86 ; -0x7f12 12B
 
   ; FUNDAMENTAL OPERATIONS
 
@@ -63,6 +64,25 @@ done:
     mov (addr) (ijp 4 +)
     mov (addr 1 +) (ijp 5 +)
     jmp _ijp
+  .endmacro
+
+  ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
+  .macro ld x y
+    clear stdlib_tmp1
+    clear stdlib_tmp2
+    ; TODO: write this:
+    ;       0xXXXX 0x7f00 next
+    ; next: 0x7f00 0x7f00 done
+    mov x ld
+    mov (x 1 +) (ld 1 +)
+    mov #0x7f (ld 2 +)
+    clear (ld 3 +)
+    ; ld 4 & 5 = next
+    mov #0x7f (ld 6 +)
+    clear (ld 7 +)
+    mov #0x7f (ld 8 +)
+    clear (ld 9 +)
+done:
   .endmacro
 
   ; BRANCHING OPERATIONS

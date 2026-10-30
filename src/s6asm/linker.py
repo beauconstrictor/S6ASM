@@ -69,7 +69,10 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             s = tok.operands[0][1:][:-1]
             if tok.directive == "asciiz": s += "\0"
             for c in s:
-                yield Token.using(f"  .byte {ord(c)}", tok)
+                i = ord(c)
+                if i > 255:
+                    raise AsmSyntaxError(f"{c!r} is not an ASCII character", tok)
+                yield Token.using(f"  .byte {i}", tok)
             emitted += len(s)
 
         else:
