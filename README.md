@@ -197,24 +197,6 @@ You *can* use this assembler without the standard library. Without it, you have 
   .org 0x8000
 ```
 
-You also have to include all your immediate constants in memory, because you lose access to `#`-prefixed immediates.
-
-With the `stdlib`:
-
-```
-  subleq #0xfe x done
-done:
-```
-
-Without it:
-
-```
-  subleq hexfe x done
-
-hexfe:
-  .byte 0xfe
-```
-
 And finally, you will need to define constants for the various features of the S6's memory map:
 
 ```

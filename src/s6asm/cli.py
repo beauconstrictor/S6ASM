@@ -525,8 +525,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
         elif tok.directive == "const":
             ensure_args(tok, 2)
             assert not isinstance(tok.operands[0], Expression)
-            if tok.operands[0] in labels:
-                raise AsmSyntaxError(f"{tok.operands!r} is already defined", tok)
+            # you are allowed to rewrite consts (so ig they're not
+            # really constants) - this makes for useful macros
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive == "asciiz" or tok.directive == "ascii":
