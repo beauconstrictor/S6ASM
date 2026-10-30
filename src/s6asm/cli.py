@@ -21,6 +21,7 @@ ALLOWED_DIRECTIVES = {
         "word",
         "const",
         "macro",
+        "ascii",
         "asciiz",
         "endmacro"}
 
@@ -528,7 +529,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmSyntaxError(f"{tok.operands!r} is already defined", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
-        elif tok.directive == "asciiz":
+        elif tok.directive == "asciiz" or tok.directive == "ascii":
             ensure_args(tok, 1)
             assert not isinstance(tok.operands[0], Expression)
             s = tok.operands[0]
@@ -536,8 +537,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             if len(s) < 2 or s[0] not in quotes or s[-1] not in quotes:
                 raise AsmSyntaxError("expected quotes around string argument", tok)
             assert not isinstance(s, Expression)
-
-            pc += len(s) - 1
+            
+            pc += len(s) - 2
+            if tok.directive == "asciiz":
+                pc += 1
 
     return labels
 
@@ -597,9 +600,10 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             yield Token.using(f"  .byte {lo}", tok)
             continue
 
-        elif tok.directive == "asciiz":
+        elif tok.directive == "asciiz" or tok.directive == "ascii":
             assert not isinstance(tok.operands[0], Expression)
-            s = tok.operands[0][1:][:-1] + "\0"
+            s = tok.operands[0][1:][:-1]
+            if tok.directive == "asciiz": s += "\0"
             for c in s:
                 yield Token.using(f"  .byte {ord(c)}", tok)
             emitted += len(s)
