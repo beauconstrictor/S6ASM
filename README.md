@@ -138,6 +138,24 @@ hi:
   .byte '\0'
 ```
 
+If you prefix the name of a label with a `@`, then it becomes a 'local' label. This means that it only remains in scope until the next normal label, allowing you to use reuse common label names like this:
+
+```
+func1:
+  mov #50 i
+@loop:
+  out #'A'
+  dbgt i @loop
+
+func2:
+  mov #'9' c
+  mov #10 i
+@loop:
+  out i
+  dec i
+  dbgt i @loop
+```
+
 The macros namespace contains a map of names to a sequence of lines of code, as well as a list of parameters. This allows you to call a macro and pass it some arguments, wherever the original macro definition used it's parameters:
 
 ```
