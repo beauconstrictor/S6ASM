@@ -194,6 +194,11 @@ class Operation(Enum):
     def __str__(self) -> str:
         return self.value
 
+# TODO:
+#   - rewrite the lexer to support no whitespace and to include
+#     parentheses
+#   - once it's lexed, use shunting-yard to rejig it around to be
+#     rpn
 class Expression:
     def __init__(self, text: str) -> None:
         self.tokens: list[Literal|Operation] = [Operation(word)
