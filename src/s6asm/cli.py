@@ -544,11 +544,15 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     return labels
 
+def preprocessor(source: str, path: str="<unknown>") -> Iterator[Token]:
+    tokens = list(expand_macros(source, path=path))
+    yield from tokens
+    labels = find_labels(tokens)
+    yield from generate_immediates(tokens, labels)
+
 # - remove all labels and expressions from the program
 def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
-    tokens = list(expand_macros(source, path=path))
-    labels = find_labels(tokens)
-    tokens += list(generate_immediates(tokens, labels))
+    tokens = list(preprocessor(source, path))
     labels = find_labels(tokens)
 
     initial_origin = None
@@ -635,7 +639,7 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
     return binary
 
 # - emulate a binary
-# TOOD: CONSTANTS!
+# TODO: remove magic numbers
 class Emulator:
     def __init__(self, image: bytearray) -> None:
         if len(image) > 0x8000:
@@ -753,7 +757,7 @@ def main() -> None:
             for tok in tokenise(file, path=path):
                 print(tok)
         elif args.preprocessor:
-            for tok in expand_macros(file, path=path):
+            for tok in preprocessor(file, path=path):
                 print(tok)
         elif args.linker:
             for tok in evaluate(file, path=path):
