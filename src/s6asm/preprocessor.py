@@ -238,6 +238,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
     labels: dict[str, int] = {}
     pc = 0
 
+    allocator = 0
+
     for tok in tokens:
         if tok.label:
             if tok.label in labels:
@@ -266,7 +268,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
             labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
-        elif tok.directive == "asciiz" or tok.directive == "ascii":
+        elif tok.directive and tok.directive.removesuffix("z") in ("ascii", "string"):
             ensure_args(tok, 1)
             assert not isinstance(tok.operands[0], Expression)
             s = tok.operands[0]
@@ -276,8 +278,17 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             assert not isinstance(s, Expression)
             
             pc += len(s) - 2
-            if tok.directive == "asciiz":
-                pc += 1
+            if tok.directive.endswith("z"): pc += 1
+
+        elif tok.directive == "res":
+            ensure_args(tok, 2)
+            size = make_expr(tok.operands[0]).evaluate(labels, tok)
+            name = tok.operands[1]
+            assert not isinstance(name, Expression)
+            if tok.operands[0] in labels:
+                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
+            labels[name] = allocator
+            allocator += size
 
     return labels
 

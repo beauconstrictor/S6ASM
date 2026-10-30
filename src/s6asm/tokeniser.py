@@ -11,6 +11,7 @@ BRACKET_CHARS = ("(", ")", ";")
 ALLOWED_DIRECTIVES = {
         None,
         "org",
+        "res",
         "byte",
         "word",
         "const",

@@ -1,7 +1,7 @@
   .include <stdlib>
 
-  .const c 0x0000
-  .const s 0x0001
+  .res 1 c
+  .res 2 s
 
   lptr msg s
 loop:
