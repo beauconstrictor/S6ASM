@@ -17,7 +17,9 @@ ALLOWED_DIRECTIVES = {
         "macro",
         "ascii",
         "asciiz",
+        "string",
         "include",
+        "stringz",
         "endmacro"}
 
 def bracketise(s: object) -> str:

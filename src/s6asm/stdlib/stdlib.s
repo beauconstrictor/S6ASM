@@ -130,6 +130,24 @@ done:
     add x out
   .endmacro
 
+  ; 16-BIT HELPERS
+
+  ; load the address of label x into y
+  .macro lptr x y
+    mov #(1 x 8 >> *) y
+    mov #(1 x 0xff & *) (y 1 +)
+  .endmacro
+
+  ; move word x into word y
+  .macro movw x y
+    mov x y
+    mov (x 1 +) (y 1 +)
+  .endmacro
+
+  .macro incw x
+
+  .endmacro
+
   ; SETUP CODE
 
 _start:

@@ -64,14 +64,14 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
             yield Token.using(f"  .byte {lo}", tok)
             continue
 
-        elif tok.directive == "asciiz" or tok.directive == "ascii":
+        elif tok.directive and tok.directive.removesuffix("z") in ("ascii", "string"):
             assert not isinstance(tok.operands[0], Expression)
             s = tok.operands[0][1:][:-1]
-            if tok.directive == "asciiz": s += "\0"
+            if tok.directive.endswith("z"): s += "\0"
             for c in s:
                 i = ord(c)
                 if i > 255:
-                    raise AsmSyntaxError(f"{c!r} is not an ASCII character", tok)
+                    raise AsmSyntaxError(f"{c!r} is not an ascii character", tok)
                 yield Token.using(f"  .byte {i}", tok)
             emitted += len(s)
             continue
