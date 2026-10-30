@@ -218,8 +218,8 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
             immediates[value].add(s)
 
     line = 0
-    for value, exps in immediates.items():
-        for exp in exps:
+    for value in sorted(immediates.keys()):
+        for exp in sorted(immediates[value]):
             yield Token(f"({exp}):", "immediates", line := line + 1)
         yield Token(f"  .byte {value}", "immediates", line := line + 1)
 
