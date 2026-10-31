@@ -205,6 +205,8 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
     immediates: defaultdict[int, set[str]] = defaultdict(set)
 
     for tok in tokens:
+        if tok.label and tok.label.startswith("#"):
+            raise AsmSyntaxError("labels cannot begin with '#'", tok)
 
         for exp in chain(tok.operands, (tok.a, tok.b, tok.c)):
             if not isinstance(exp, Expression): continue
