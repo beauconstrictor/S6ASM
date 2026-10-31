@@ -19,7 +19,7 @@
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual
   ; addresses clearer, which is good when using them directly
-  .const ijp  0x7f80 ; -0x7f85 6B
+  .const jtp  0x7f80 ; -0x7f85 6B
   .const ld   0x7f86 ; -0x7f82 12B
 
   ; FUNDAMENTAL OPERATIONS
@@ -170,9 +170,9 @@ done:
   ; doesn't jump to addr, jumps to the address at addr,
   ; where addr contains the high byte and addr + 1 contains the low
   ; byte
-  .macro ijp addr
-    movw addr (ijp 4 +)
-    jmp _ijp
+  .macro jtp addr
+    movw addr (jtp 4 +)
+    jmp jtp
   .endmacro
 
   ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
@@ -194,10 +194,10 @@ done:
 
   ; a jmp instruction is effectively 0x7f00 0x7f00 0xADDR
   ; so we just encode that here in memory, for indirects
-  mov #0x7f  ijp
-  clear     (ijp 1 +)
-  mov #0x7f (ijp 2 +)
-  clear     (ijp 3 +)
+  mov #0x7f  jtp
+  clear     (jtp 1 +)
+  mov #0x7f (jtp 2 +)
+  clear     (jtp 3 +)
 
   mov #0x7f (ld 2 +)
   mov #0x01 (ld 3 +)
