@@ -59,34 +59,6 @@ done:
     subleq stdlib_zero stdlib_zero x
   .endmacro
 
-  ; doesn't jump to addr, jumps to the address at addr,
-  ; where addr contains the high byte and addr + 1 contains the low
-  ; byte
-  .macro ijp addr
-    mov (addr) (ijp 4 +)
-    mov (addr 1 +) (ijp 5 +)
-    jmp _ijp
-  .endmacro
-
-  ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
-  .macro ld x y
-    clear stdlib_tmp1
-    ; writes this:
-    ;         *x     0x7f01 0x7f8c
-    ; 0x7f8c: 0x7f00 0x7f00 done
-    mov x ld
-    mov (x 1 +)            (ld 1 +)
-    ; the 1 ... * is a hack to make 'done' get substituted properly
-    ; during macro expansion. live laugh love s6asm
-    mov #(1 done 8 >> *)   (ld 10 +)
-    mov #(1 done 0xff & *) (ld 11 +)
-    jmp ld
-done:
-    ; the value we want is now in stdlib_tmp1, negated
-    clear y
-    sub stdlib_tmp1 y
-  .endmacro
-
   ; BRANCHING OPERATIONS
 
   ; branches to y if x is <= stdlib_zeroero
@@ -191,6 +163,31 @@ done:
 wont_carry:
     dec (x 1 +)
 done:
+  .endmacro
+
+  ; SELF-MODIFIERS
+
+  ; doesn't jump to addr, jumps to the address at addr,
+  ; where addr contains the high byte and addr + 1 contains the low
+  ; byte
+  .macro ijp addr
+    movw addr (ijp 4 +)
+    jmp _ijp
+  .endmacro
+
+  ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
+  .macro ld x y
+    clear stdlib_tmp1
+    ; writes this:
+    ;         x      0x7f01 0x7f8c
+    ; 0x7f8c: 0x7f00 0x7f00 done
+    movw x ld
+    lptr done (ld 10 +)
+    jmp ld
+done:
+    ; the value we want is now in stdlib_tmp1, negated
+    clear y
+    sub stdlib_tmp1 y
   .endmacro
 
   ; SETUP CODE

@@ -205,6 +205,7 @@ def generate_immediates(tokens: list[Token], labels: dict[str, int]) -> Iterator
     immediates: defaultdict[int, set[str]] = defaultdict(set)
 
     for tok in tokens:
+
         for exp in chain(tok.operands, (tok.a, tok.b, tok.c)):
             if not isinstance(exp, Expression): continue
             if len(exp.tokens) < 1: continue

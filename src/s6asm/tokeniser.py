@@ -297,6 +297,10 @@ def tokenise(source: str, path: str="<unknown>") -> Iterator[Token]:
     for i, l in enumerate(source.splitlines(), start=1):
         if not l.strip(): continue
         tok = Token(l, path, i)
+
+        if tok.label and tok.label.startswith("#"):
+            raise AsmSyntaxError("labels cannot begin with '#'", tok)
+
         if not tok.is_empty(): yield tok
 
 def make_expr(s: str | Expression) -> Expression:
