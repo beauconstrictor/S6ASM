@@ -31,11 +31,24 @@ def debug(emu: Emulator) -> None:
             step += 1
         visualise(emu, step)
 
-def error(summary: object, desc: object="") -> None:
+def error(summary: object, desc: object="", traceback: list[str]|None=None) -> None:
     red = "\033[31m" if stderr.isatty() and not getenv("NO_COLOR") else ""
     yellow = "\033[33m" if red else ""
+    purple = "\033[35m" if red else ""
     reset = "\033[0m" if red else ""
-    print(f"{red}s6asm: {yellow}{summary if desc else ''}{': ' if desc else ''}{reset}{desc if desc else summary}", file=stderr)
+    bold = "\033[1m" if red else ""
+    dim = "\033[2m" if red else ""
+    print(f"{red}s6asm: {yellow}{bold}{summary if desc else ''}{': ' if desc else ''}{reset}{desc if desc else summary}", file=stderr)
+
+    if traceback:
+        print(f"\ntraceback (deepest macro last):\n")
+        i = 2
+        print(f"{purple}{traceback[0]}")
+        for t in traceback[1:]:
+            print(f"{reset}{dim}{' '*i}|\n{' '*i}+-- {reset}{purple}{t}")
+            i += 6
+        print(reset)
+
 
 def main() -> None:
     parser = ArgumentParser(
@@ -109,15 +122,27 @@ def main() -> None:
         else:
             stdout.buffer.write(binary)
     except AsmError as e:
-        if args.debug: raise
-        if e.location: error(e.location, e.message)
-        else: error(e.message) 
-        parser.exit(1)
+        if args.traceback:
+            raise
+        else:
+            if args.debug:
+                raise
+            elif e.traceback:
+                assert e.location is not None
+                error(e.location, e.message, [e.location, *e.traceback])
+            elif e.location:
+                error(e.location, e.message)
+            else:
+                error(e.message) 
+            parser.exit(1)
     except NotImplementedError as e:
         error(e)
         parser.exit(1)
     except KeyboardInterrupt:
-        error("interrupt.")
+        if args.traceback:
+            raise
+        else:
+            error("interrupt.")
 
 if __name__ == "__main__":
     main()

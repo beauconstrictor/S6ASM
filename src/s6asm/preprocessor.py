@@ -8,7 +8,7 @@ from collections.abc import Iterable, Iterator
 from .errs import *
 from .tokeniser import make_expr, tokenise, Token, Expression, Literal
 
-# TODO: record the original location in the macro definition as well
+MACRO_LIMIT = 10
 
 @dataclass
 class Macro:
@@ -58,8 +58,11 @@ def resolve_local_labels(source: str, path: str="<unknown>") -> Iterator[Token]:
 
         yield tok
 
-def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]:
+def expand_single_macro(tok: Token, macros: dict[str, Macro], count: int) -> Iterator[Token]:
     global macro_invocation_idx
+
+    if count >= MACRO_LIMIT:
+        raise AsmSyntaxError("excessive recursion", tok)
 
     if not tok.macro:
         raise ValueError("not a macro token")
@@ -77,6 +80,8 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
 
     for subtok in macro.tokens:
         subtok = subtok.duplicate()
+        subtok.traceback.extend(tok.traceback)
+        subtok.traceback.append((subtok.path, macro.name, subtok.lineno))
         subtok.path = tok.path
         subtok.lineno = tok.lineno
 
@@ -111,7 +116,10 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro]) -> Iterator[Token]
         if subtok.macro is None:
             yield subtok
         else:
-            yield from expand_single_macro(subtok, macros)
+            if subtok.label:
+                yield Token.using(f"{subtok.label}:", tok)
+                subtok.label = None
+            yield from expand_single_macro(subtok, macros, count + 1)
 
 def is_printable_ascii(c: int) -> bool:
     return 32 <= c <= 126
@@ -184,10 +192,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
         elif tok.macro is not None:
             if tok.label:
                 yield Token.using(f"{tok.label}:", tok)
-            try:
-                yield from expand_single_macro(tok, macros)
-            except RecursionError:
-                raise AsmRecursionError("macro recurses", tok)
+            yield from expand_single_macro(tok, macros, 0)
 
         # instruction/label/directive
         else:

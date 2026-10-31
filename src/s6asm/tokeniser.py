@@ -39,6 +39,7 @@ class Token:
     def __init__(self, line: str, path: str="<unknown>", lineno: int=-1) -> None:
         self.path:   str = path
         self.lineno: int = lineno
+        self.traceback: list[tuple[str, str, int]] = []
 
         acc = ""
         words: list[str] = []
@@ -133,6 +134,7 @@ class Token:
         tok.operands  = [o.duplicate() if isinstance(o, Expression) else o for o in self.operands]
         tok.path      = self.path
         tok.lineno    = self.lineno
+        tok.traceback = self.traceback.copy()
         return tok
 
     @override

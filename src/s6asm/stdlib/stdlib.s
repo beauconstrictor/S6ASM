@@ -76,8 +76,6 @@ done:
     ; 0x7f8c: 0x7f00 0x7f00 done
     mov x ld
     mov (x 1 +)            (ld 1 +)
-    mov #0x7f              (ld 4 +)
-    mov #0x8c              (ld 5 +)
     ; the 1 ... * is a hack to make 'done' get substituted properly
     ; during macro expansion. live laugh love s6asm
     mov #(1 done 8 >> *)   (ld 10 +)
@@ -206,6 +204,8 @@ done:
 
   mov #0x7f (ld 2 +)
   mov #0x01 (ld 3 +)
+  mov #0x7f (ld 4 +)
+  mov #0x8c (ld 5 +)
   mov #0x7f (ld 6 +)
   clear     (ld 7 +)
   mov #0x7f (ld 8 +)
