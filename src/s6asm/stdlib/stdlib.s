@@ -19,8 +19,9 @@
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual
   ; addresses clearer, which is good when using them directly
-  .const jtp  0x7f80 ; -0x7f85 6B
-  .const ld   0x7f86 ; -0x7f82 12B
+  .const jtp 0x7f80 ; -0x7f85  6B
+  .const ld  0x7f86 ; -0x7f91 12B
+  .const st  0x7F92 ; -0x7fa3 18B
 
   ; FUNDAMENTAL OPERATIONS
 
@@ -170,12 +171,14 @@ done:
   ; doesn't jump to addr, jumps to the address at addr,
   ; where addr contains the high byte and addr + 1 contains the low
   ; byte
-  .macro jtp addr
-    movw addr (jtp 4 +)
+  .macro jtp x
+    ; writes this:
+    ;         0x7f00 0x7f00 x
+    movw x (jtp 4 +)
     jmp jtp
   .endmacro
 
-  ; the value in ((*x << 8)| *(x + 1)) points to the value to move into y
+  ; the value in x points to the value to move into y
   .macro ld x y
     clear stdlib_tmp1
     ; writes this:
@@ -190,23 +193,43 @@ done:
     sub stdlib_tmp1 y
   .endmacro
 
+  ; the value in x is moved to what the value in y points to
+  .macro st x y
+    clear stdlib_tmp2
+    sub x stdlib_tmp2
+    ; writes this:
+    ;       y      y      jmp1
+    ; jmp1: 0x7f01 y      jmp2
+    ; jmp2: 0x7f00 0x7f00 done
+    movw y           (st  0 +)
+    movw y           (st  2 +)
+    movw y           (st  8 +)
+    lptr done        (st 16 +)
+    jmp st
+done:
+  .endmacro
+
   ; SETUP CODE
 
-  ; a jmp instruction is effectively 0x7f00 0x7f00 0xADDR
-  ; so we just encode that here in memory, for indirects
   mov #0x7f  jtp
   clear     (jtp 1 +)
   mov #0x7f (jtp 2 +)
   clear     (jtp 3 +)
 
-  mov #0x7f (ld 2 +)
-  mov #0x01 (ld 3 +)
-  mov #0x7f (ld 4 +)
-  mov #0x8c (ld 5 +)
-  mov #0x7f (ld 6 +)
-  clear     (ld 7 +)
-  mov #0x7f (ld 8 +)
-  clear     (ld 9 +)
+  lptr stdlib_tmp1 (ld 2 +)
+  lptr (ld 6 +)    (ld 4 +)
+  mov #0x7f        (ld 6 +)
+  clear            (ld 7 +)
+  mov #0x7f        (ld 8 +)
+  clear            (ld 9 +)
+
+  lptr (st  6 +)   (st  4 +)
+  lptr stdlib_tmp2 (st  6 +)
+  lptr (st 12 +)   (st 10 +)
+  mov  #0x7f       (st 12 +)
+  clear            (st 13 +)
+  mov  #0x7f       (st 14 +)
+  clear            (st 15 +)
 
   jmp _start
 
