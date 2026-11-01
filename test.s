@@ -66,7 +66,11 @@ check_beq:
   beq byte @done
   jmp @loop
 @msg:
-  .string "Ensure that all of the following statements are true (press any key):"
+  .string "Ensure that all of the following statements are true."
+  .byte 0x0a
+  .string "This is a test for the 'beq' macro. Press any key to"
+  .byte 0x0a
+  .string "begin."
   .word 0x0a00
 @done:
   out #0x0a
