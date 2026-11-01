@@ -8,7 +8,7 @@ from collections.abc import Iterable, Iterator
 from .errs import *
 from .tokeniser import make_expr, tokenise, Token, Expression, Literal
 
-MACRO_LIMIT = 10
+MACRO_LIMIT = 30
 
 @dataclass
 class Macro:
@@ -103,7 +103,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro], count: int) -> Ite
 
         # macro parameters
         for i, o in enumerate(subtok.operands):
-            if isinstance(o, str): continue
+            assert isinstance(o, Expression)
             for i2, p in enumerate(macro.parameters):
                 v = tok.operands[i2]
                 o.substitute(p, v)

@@ -11,7 +11,7 @@ from .errs import *
 # TODO: unrelated, but use the heading 'the illusion of an
 #       instruction' in your next blog post
 
-BRACKET_CHARS = ("(", ")", ";")
+BRACKET_CHARS = "();"
 
 ALLOWED_DIRECTIVES = {
         None,
