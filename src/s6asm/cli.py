@@ -65,8 +65,8 @@ def main() -> None:
                         help="show python tracebacks")
 
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("-t", "--tokeniser", action="store_true",
-                      help="convert the program into a simpler form.")
+    mode.add_argument("-p", "--parser", action="store_true",
+                      help="read and interpret source code. catches only syntax errors.")
     mode.add_argument("-p", "--preprocessor", action="store_true",
                       help="expand macros and includes in the program.")
     mode.add_argument("-l", "--linker", action="store_true",

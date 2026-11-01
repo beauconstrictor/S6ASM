@@ -103,7 +103,7 @@ def expand_single_macro(tok: Token, macros: dict[str, Macro], count: int) -> Ite
 
         # macro parameters
         for i, o in enumerate(subtok.operands):
-            assert isinstance(o, Expression)
+            if isinstance(o, str): continue
             for i2, p in enumerate(macro.parameters):
                 v = tok.operands[i2]
                 o.substitute(p, v)
