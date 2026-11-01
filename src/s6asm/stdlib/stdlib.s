@@ -5,7 +5,6 @@
   .const out 0xfffe
   .const halt 0xfffe
 
-
   ; REGISTERS
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
@@ -17,6 +16,8 @@
   .res 1 stdlib_tmp2
   .res 1 stdlib_tmp3
   .res 1 stdlib_tmp4
+  .res 1 stdlib_tmp5
+  .res 1 stdlib_tmp6
 
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual
@@ -210,12 +211,12 @@ done:
   ; add byte x to word y; stores in y
   ; interprets X as unsigned, so this does not allow subtraction
   .macro addbw x y
-    mov (y 1 +) stdlib_tmp3
+    mov (y 1 +) stdlib_tmp5
     add x (y 1 +)
-    mov (y 1 +) stdlib_tmp4
-    sub #128 stdlib_tmp4
-    sub #128 stdlib_tmp3
-    cgt stdlib_tmp3 stdlib_tmp4 carry
+    mov (y 1 +) stdlib_tmp6
+    sub #128 stdlib_tmp6
+    sub #128 stdlib_tmp5
+    cgt stdlib_tmp5 stdlib_tmp6 carry
     jmp done
 carry:
     inc y

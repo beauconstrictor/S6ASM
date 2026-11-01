@@ -16,16 +16,12 @@
     out hex_nibble
   .endmacro
 
-  .macro hex_outw x
-    hex_out x
-    hex_out (x 1 +)
-  .endmacro
-
   mov #00 byte
 loop:
   hex_out byte
-  out #0x0a
   inc byte
+  beq byte freeze
   jmp loop
 
+  .org 0x9002
   .include "hex_lookup_table.s"
