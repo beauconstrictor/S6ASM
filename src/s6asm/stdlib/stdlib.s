@@ -5,16 +5,18 @@
   .const out 0xfffe
   .const halt 0xfffe
 
-  ; ram addresses from 0x7f00 onward are reserved for the stdlib
 
   ; REGISTERS
 
+  ; ram addresses from 0x7f00 onward are reserved for the stdlib
   ; increasing layers of macros have to use the registers increasingly
   ; low in this list
   .bank 0x7f00
-  .res 1 stdlib_zero
+  .res 1 stdlib_tmp0
   .res 1 stdlib_tmp1
   .res 1 stdlib_tmp2
+  .res 1 stdlib_tmp3
+  .res 1 stdlib_tmp4
 
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual
@@ -37,9 +39,9 @@ done:
 
   ; stores in y
   .macro add x y
-    clear stdlib_zero
-    sub x stdlib_zero
-    sub stdlib_zero y
+    clear stdlib_tmp0
+    sub x stdlib_tmp0
+    sub stdlib_tmp0 y
   .endmacro
 
   .macro inc x
@@ -57,17 +59,21 @@ done:
   .endmacro
 
   .macro jmp x
-    subleq stdlib_zero stdlib_zero x
+    subleq stdlib_tmp0 stdlib_tmp0 x
   .endmacro
 
   ; BRANCHING OPERATIONS
 
-  ; branches to y if x is <= stdlib_zeroero
+  ; fair warning: these are _signed_ comparisons!
+  ; to use them as unsigned, you gotta subtract 128 from both
+  ; operands first. :)
+
+  ; branches to y if x is <= stdlib_tmp0
   .macro ble x y
     subleq #0 x y
   .endmacro
   
-  ; branchs to y if x is > stdlib_zeroero
+  ; branchs to y if x > stdlib_tmp0
   .macro bgt x y
     ble x done
     jmp y
@@ -92,7 +98,7 @@ done:
     ble stdlib_tmp1 y
   .endmacro
 
-  ; decrements x, then branches to y if x is greater than stdlib_zeroero
+  ; decrements x, then branches to y if x is greater than stdlib_tmp0
   .macro dbgt x y
     ; could implement this using dec and bgt, but it would be bigger
     ; than necessary
@@ -101,11 +107,24 @@ done:
 done:
   .endmacro
 
-  ; branches to z if x = y
-  .macro bcp x y z
+  ; COMPARISON OPERATIONS
+
+  ; helper macro
+  .macro _cmp x y
     mov x stdlib_tmp2
     sub y stdlib_tmp2
+  .endmacro
+
+  ; branches to z if x = y
+  .macro ceq x y z
+    _cmp x y
     beq stdlib_tmp2 z
+  .endmacro
+
+  ; branches to z if x > y
+  .macro cgt x y z
+    _cmp x y
+    bgt stdlib_tmp2 z
   .endmacro
 
   ; SPECIAL OEPRATIONS
@@ -151,18 +170,33 @@ wait:
 
   .macro incw x
     inc (x 1 +)
-    bne x done
+    bne (x 1 +) done
     inc x
 done:
   .endmacro
 
   .macro decw x
-    beq x wont_carry
+    beq (x 1 +) will_borrow
+    dec (x 1 +)
+    jmp done
+will_borrow:
     dec (x 1 +)
     dec x
+done:
+  .endmacro
+
+  ; add byte x to word y; stores in y
+  ; interprets X as unsigned, so this does not allow subtraction
+  .macro addbw x y
+    mov (y 1 +) stdlib_tmp3
+    add x (y 1 +)
+    mov (y 1 +) stdlib_tmp4
+    sub #128 stdlib_tmp4
+    sub #128 stdlib_tmp3
+    cgt stdlib_tmp3 stdlib_tmp4 carry
     jmp done
-wont_carry:
-    dec (x 1 +)
+carry:
+    inc y
 done:
   .endmacro
 
@@ -207,6 +241,16 @@ done:
     lptr done        (st 16 +)
     jmp st
 done:
+  .endmacro
+
+  ; BITWISE OPERATIONS
+ 
+  ; invert x and store in y (can be x again)
+  .macro not x y
+    clear stdlib_tmp1
+    sub x stdlib_tmp1
+    dec stdlib_tmp1
+    mov stdlib_tmp1 y
   .endmacro
 
   ; SETUP CODE

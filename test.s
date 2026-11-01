@@ -1,34 +1,31 @@
   .include <stdlib>
 
-  .res 1 c
-  .res 2 s
+  .res 2 hex_lookup
+  .res 1 hex_nibble
 
-  .macro print msg
-    lptr msg s
-loop:
-    ld s c
-    ble c done
-    out c
-    incw s
-    jmp loop
-done:
+  .res 1 byte
+
+  .macro hex_out x
+    lptr hex_lookup_table_msn hex_lookup
+    addbw x hex_lookup
+    ld hex_lookup hex_nibble
+    out hex_nibble
+    lptr hex_lookup_table_lsn hex_lookup
+    addbw x hex_lookup
+    ld hex_lookup hex_nibble
+    out hex_nibble
   .endmacro
 
-  print prompt
-input:
-  pin c
-  bcp c #'q' bye
-  out c
-  jmp input
-bye:
-  print bye_msg
-  halt
+  .macro hex_outw x
+    hex_out x
+    hex_out (x 1 +)
+  .endmacro
 
-prompt:
-  .string "Enter text:"
-  .byte 0x0a
-  .asciiz "> "
-bye_msg:
-   .byte 0x0a
-   .string "Bye!"
-   .word 0x0a00
+  mov #00 byte
+loop:
+  hex_out byte
+  out #0x0a
+  inc byte
+  jmp loop
+
+  .include "hex_lookup_table.s"
