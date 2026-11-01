@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from os import getenv
+from time import sleep
 from pathlib import Path
 from argparse import ArgumentParser
 from sys import stdout, stderr, stdin
@@ -75,8 +76,14 @@ def main() -> None:
     mode.add_argument("-d", "--debug", action="store_true",
                       help="emulate the program and watch what it does, step by step.")
 
+    parser.add_argument("-s", "--slow-emu", action="store_true",
+                      help="slows down the emulator, to make it easier to identify performance issues.")
+
     args = parser.parse_args()
     path = str(args.program)
+
+    if args.slow_emu and not args.emulator:
+        parser.error("--slow-emu requires --emulator")
 
     if path == "-":
         try:
@@ -115,7 +122,11 @@ def main() -> None:
         binary = assemble(file, path)
 
         if args.emulator:
-            Emulator(binary).run_until_halt()
+            emu = Emulator(binary)
+            while not emu.halted():
+                emu.step()
+                if args.slow_emu:
+                    sleep(0.0001)
         elif args.debug:
             emu = Emulator(binary)
             debug(emu)
