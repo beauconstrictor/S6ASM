@@ -125,7 +125,7 @@ done:
     beq stdlib_tmp2 z
   .endmacro
 
-; branches to z if signed x > signed y
+  ; branches to z if signed x > signed y
   .macro cgt x y z
     bgt x x_nonnegative
     mov x stdlib_tmp3
