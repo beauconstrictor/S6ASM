@@ -145,7 +145,7 @@ def main() -> None:
                 error(e.location, e.message)
             else:
                 error(e.message) 
-            parser.exit(1)
+            parser.exit(e.code)
     except NotImplementedError as e:
         error(e)
         parser.exit(1)

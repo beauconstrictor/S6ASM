@@ -6,6 +6,8 @@ class HasLocation(Protocol):
     traceback: list[tuple[str, str, int]]
 
 class AsmError(Exception):
+    code: int = 1
+
     def __init__(self, message: str, token: HasLocation|None=None) -> None:
         self.message: str = message
         self.location: str|None = None
@@ -28,11 +30,19 @@ class AsmError(Exception):
         else:
             super().__init__(message)
 
-class AsmRomError(AsmError): ...
-class AsmBankError(AsmError): ...
-class AsmSyntaxError(AsmError): ...
-class AsmOriginError(AsmError): ...
-class AsmIncludeError(AsmError): ...
-class AsmRecursionError(AsmError): ...
-class AsmWordWidthError(AsmError): ...
-class AsmExpressionError(AsmError): ...
+class AsmRomError(AsmError):
+    code: int = 3
+class AsmBankError(AsmError):
+    code: int = 4
+class AsmSyntaxError(AsmError):
+    code: int = 5
+class AsmOriginError(AsmError):
+    code: int = 6
+class AsmIncludeError(AsmError):
+    code: int = 7
+class AsmRecursionError(AsmError):
+    code: int = 8
+class AsmWordWidthError(AsmError):
+    code: int = 9
+class AsmExpressionError(AsmError):
+    code: int = 10
