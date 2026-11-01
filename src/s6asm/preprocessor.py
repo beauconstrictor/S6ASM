@@ -291,6 +291,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
         elif tok.directive == "res":
             ensure_args(tok, 2)
             size = make_expr(tok.operands[0]).evaluate(labels, tok)
+            if allocator + size > 0xffff:
+                raise AsmBankError("cannot fit reserve in address space", tok)
             name = tok.operands[1]
             assert not isinstance(name, Expression)
             if name in labels:
@@ -300,6 +302,8 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
         elif tok.directive == "bank":
             ensure_args(tok, 1)
+            if not (0x0000 <= bank <= 0xffff):
+                raise AsmBankError("cannot fit bank in address space", tok)
             allocator = make_expr(tok.operands[0]).evaluate(labels, tok)
 
     return labels
