@@ -19,6 +19,9 @@
   .res 1 stdlib_tmp5
   .res 1 stdlib_tmp6
 
+  ; useless register for user programs
+  .res 1 _
+
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual
   ; addresses clearer, which is good when using them directly
