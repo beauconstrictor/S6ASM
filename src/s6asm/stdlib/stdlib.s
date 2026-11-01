@@ -121,10 +121,32 @@ done:
     beq stdlib_tmp2 z
   .endmacro
 
-  ; branches to z if x > y
+; branches to z if signed x > signed y
   .macro cgt x y z
-    _cmp x y
+    bgt x x_nonnegative
+    mov x stdlib_tmp3
+    inc stdlib_tmp3
+    ble stdlib_tmp3 x_negative
+    jmp x_nonnegative
+x_negative:
+    bgt y done
+    mov y stdlib_tmp4
+    inc stdlib_tmp4
+    ble stdlib_tmp4 compare
+    jmp done
+x_nonnegative:
+    bgt y compare
+    mov y stdlib_tmp4
+    inc stdlib_tmp4
+    ble stdlib_tmp4 greater
+    jmp compare
+greater:
+    jmp z
+compare:
+    mov x stdlib_tmp2
+    sub y stdlib_tmp2
     bgt stdlib_tmp2 z
+done:
   .endmacro
 
   ; SPECIAL OEPRATIONS
