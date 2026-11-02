@@ -25,7 +25,6 @@ S6ASM is a comprehensive, albeit immature, macro assembler and development toolc
 - Architecture
     - SUBLEQ
     - Memory map
-    - Serial I/O
     - Tape I/O
 - Error Reporting
     - Messages
@@ -39,6 +38,7 @@ S6ASM is a comprehensive, albeit immature, macro assembler and development toolc
     - 16-bit helpers
     - Special macros
 - Conventions
+    - Terminology
     - File structure
     - Code size tradeoffs
 
@@ -427,5 +427,59 @@ However, immediates provide a more direct solution: wherever an expression begin
   .byte 21
 ```
 
-#### Architecture
+### Architecture
 
+S6ASM is an assembler for the S6 platform. This means that, to fully understand S6ASM, you need to understand it's target machine.
+
+The S6 is an 8-bit computer, with 16-bit addressing, distinctive because it has only a single hardware instruction: `subleq a b c`. The instruction does this:
+
+1. Subtract the contents at address A from the contents at address B.
+2. Store the result back in B.
+2. If the result was less than or equal to zero (when interpreted using two's complement), the CPU branches to C (and otherwise continues to the next instruction).
+
+Because there is only a single instruction, the S6 doesn't use opcodes. Instead, the operands are simply concatenated and placed in memory as-is. An instruction like `subleq 0x11111 0x22222 0x3333` would literally be placed in memory as `11111 22222 33333`.
+
+This section is mostly a quick reference; for more thorough documentation of the S6 itself, see it's [design document](https://github.com/beauconstrictor/s6emu). This repository also includes a very basic reference emulator, written in C, if you learn best from seeing.
+
+#### Memory map
+
+The S6 memory map is extremely simple:
+
+- `0x0000` - `0x7fff`: RAM
+- `0x8000` - `0xfffd`: ROM
+- `0xfffe`: UART output (writes here go to the serial output)
+- `0xfffe`: _Also_ the halt address, when jumped to
+- `0xfffe`: UART input (returns the last character recieved by the UART, or NUL if no character was recieved since the last read)
+
+#### Tape I/O
+
+Inkeeping with the S6's very minimal philosophy, persistent storage is as simple as it possibly could be.
+
+You can insert 'tapes' which temporarily replace the function of the UART, redirecting serial reads and writes to them. If you connect a tape and output is received over the terminal, the tape is immediately cleared (if the tape is writeable, some may be read-only) and the byte is written; subsequent writes are written to subsequent location in memory. This puts the tape in write mode. When the tape is read from, it is switches to read mode. In this mode, serial reads return bytes from the tape, in the order they were written. If you write again while in read mode, the tape is again cleared.
+
+This system is intended for interactive command interpreters (like Forth, or a hex monitor), to allow programs to be installed on the machine without replacing the ROM, or for you to save your work. The idea is that you put the command interpreter in a special mode where output is disabled, Then, you can connect the tape and, since the interpreter will be listening for input, it will be able to return all of it's data. This could be regular commands for the program, or in a special tape-specific format. The tape can then send a final command that returns the interpreter to it's normal mode. This is a possible implementation; a program can use tapes in any way it needs.
+
+There are some obvious flaws in this design (for instance, what happens if a tape is removed before it finishes being read - the software will not know to stop listening for input), but it is as simple as possible.
+
+S6ASM's integrated emulator does not currently directly support tapes in any way - you will have to use your terminal emulator's copy & paste feature to approximate them.
+
+#### Error Reporting
+
+The `s6asm` library has various internal 'types' of error, which all return different exit codes. This reference does not document exactly what errors are of which type, as that would easily double the size of this reference. To find out, just trigger that error and inspect the return type.
+
+When an error is reported, a 'traceback' may be shown, if the location of the error was inside generated code from within a macro. In that case, the traceback will show the filenames, file numbers and macro names of every macro in the hierarchy. If a traceback is not shown, only a single file name and line number is given.
+
+These are the types of error that `s6asm` may produce:
+
+- Rom Error (code 3)
+- Bank Error (code 4)
+- Syntax Error (code 5)
+- Origin Error (code 6)
+- Include Error (code 7)
+- Recursion Error (code 8)
+- Word Width Error (code 9)
+- Expression Error (code 10)
+
+To disable ANSI colour output in error messages, set the `NO_COLOR` environment variable.
+
+#### Standard Library
