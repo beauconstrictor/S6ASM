@@ -17,8 +17,8 @@ This sample program prints the uppercase alphabet:
 ```
   .include <stdlib>
 
-  .const c 0x0000
-  .const i 0x0001
+  .res 1 c
+  .res 1 i
 
   mov #26  i
   mov #'A' c

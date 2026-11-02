@@ -248,10 +248,15 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     allocator = 0
 
+    def validate_new_ident(name: str) -> None:
+        if name in labels:
+            raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
+        if name.startswith("#"):
+            raise AsmSyntaxError("identifiers cannot begin with a '#'", tok)
+
     for tok in tokens:
         if tok.label:
-            if tok.label in labels:
-                raise AsmSyntaxError(f"{tok.label!r} is already defined", tok)
+            validate_new_ident(tok.label)
             labels[tok.label] = pc
 
         if tok.a is not None:
@@ -271,10 +276,10 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             pc += 2
         elif tok.directive == "const":
             ensure_args(tok, 2)
-            assert not isinstance(tok.operands[0], Expression)
-            if tok.operands[0] in labels:
-                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
-            labels[tok.operands[0]] = make_expr(tok.operands[1]).evaluate(labels, tok)
+            name = tok.operands[0]
+            assert not isinstance(name, Expression)
+            validate_new_ident(name)
+            labels[name] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive and tok.directive.removesuffix("z") in ("ascii", "string"):
             ensure_args(tok, 1)
@@ -295,8 +300,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmBankError("cannot fit reserve in address space", tok)
             name = tok.operands[1]
             assert not isinstance(name, Expression)
-            if name in labels:
-                raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
+            validate_new_ident(name)
             labels[name] = allocator
             allocator += size
 
