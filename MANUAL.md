@@ -435,7 +435,7 @@ The S6 is an 8-bit computer, with 16-bit addressing, distinctive because it has 
 2. Store the result back in B.
 2. If the result was less than or equal to zero (when interpreted using two's complement), the CPU branches to C (and otherwise continues to the next instruction).
 
-Because there is only a single instruction, the S6 doesn't use opcodes. Instead, the operands are simply concatenated and placed in memory as-is. An instruction like `subleq 0x11111 0x22222 0x3333` would literally be placed in memory as `11111 22222 33333`.
+Because there is only a single instruction, the S6 doesn't use opcodes. Instead, the operands are simply concatenated and placed in memory as-is. An instruction like `subleq 0x1111 0x2222 0x3333` would literally be placed in memory as `1111 2222 3333`.
 
 This section is mostly a quick reference; for more thorough documentation of the S6 itself, see it's [design document](https://github.com/beauconstrictor/s6emu). This repository also includes a very basic reference emulator, written in C, if you learn best from seeing.
 
@@ -447,7 +447,7 @@ The S6 memory map is extremely simple:
 - `0x8000` - `0xfffd`: ROM
 - `0xfffe`: UART output (writes here go to the serial output)
 - `0xfffe`: _Also_ the halt address, when jumped to
-- `0xfffe`: UART input (returns the last character recieved by the UART, or NUL if no character was recieved since the last read)
+- `0xffff`: UART input (returns the last character recieved by the UART, or NUL if no character was recieved since the last read)
 
 ### Tape I/O
 
@@ -537,7 +537,7 @@ These macros interpret X as signed registers.
 - `bgt x y`: Branches to Y if X > 0
 - `beq x y`: Branches to Y if X = 0
 - `bne x y`: Branches to Y if X != 0
-- `dbgt x y`: Decrements X. Branches to Y if result <= 0
+- `dbgt x y`: Decrements X. Branches to Y if result > 0
 
 ### Comparison macros
 
