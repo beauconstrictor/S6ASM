@@ -14,6 +14,7 @@ S6ASM is a comprehensive, albeit immature, macro assembler and development toolc
     - Tokeniser
     - Preprocessor
     - Linker
+    - Assembler
     - Emulator
 - Syntax
     - Parsing
