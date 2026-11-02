@@ -20,7 +20,7 @@
   .res 1 stdlib_tmp6
 
   ; useless register for user programs
-  .res 1 _
+  .res 2 _
 
   ; SELF-MODIFIERS
   ; i could use bank and res here, but const makes the actual

@@ -27,7 +27,6 @@ S6ASM is a comprehensive, albeit immature, macro assembler and development toolc
     - Memory map
     - Tape I/O
 - Error Reporting
-    - Messages
     - Tracebacks
     - Exit Codes
 - Standard Library
@@ -35,12 +34,11 @@ S6ASM is a comprehensive, albeit immature, macro assembler and development toolc
     - Fundamental macros
     - Branches
     - Comparisons
-    - 16-bit helpers
     - Special macros
-- Conventions
-    - Terminology
-    - File structure
-    - Code size tradeoffs
+    - 16-bit helpers
+    - Self-modifiers
+    - Bitwise macros
+    - Constants
 
 ## Introduction
 
@@ -427,7 +425,7 @@ However, immediates provide a more direct solution: wherever an expression begin
   .byte 21
 ```
 
-### Architecture
+## Architecture
 
 S6ASM is an assembler for the S6 platform. This means that, to fully understand S6ASM, you need to understand it's target machine.
 
@@ -441,7 +439,7 @@ Because there is only a single instruction, the S6 doesn't use opcodes. Instead,
 
 This section is mostly a quick reference; for more thorough documentation of the S6 itself, see it's [design document](https://github.com/beauconstrictor/s6emu). This repository also includes a very basic reference emulator, written in C, if you learn best from seeing.
 
-#### Memory map
+### Memory map
 
 The S6 memory map is extremely simple:
 
@@ -451,7 +449,7 @@ The S6 memory map is extremely simple:
 - `0xfffe`: _Also_ the halt address, when jumped to
 - `0xfffe`: UART input (returns the last character recieved by the UART, or NUL if no character was recieved since the last read)
 
-#### Tape I/O
+### Tape I/O
 
 Inkeeping with the S6's very minimal philosophy, persistent storage is as simple as it possibly could be.
 
@@ -463,7 +461,7 @@ There are some obvious flaws in this design (for instance, what happens if a tap
 
 S6ASM's integrated emulator does not currently directly support tapes in any way - you will have to use your terminal emulator's copy & paste feature to approximate them.
 
-#### Error Reporting
+## Error Reporting
 
 The `s6asm` library has various internal 'types' of error, which all return different exit codes. This reference does not document exactly what errors are of which type, as that would easily double the size of this reference. To find out, just trigger that error and inspect the return type.
 
@@ -482,4 +480,114 @@ These are the types of error that `s6asm` may produce:
 
 To disable ANSI colour output in error messages, set the `NO_COLOR` environment variable.
 
-#### Standard Library
+## Standard Library
+
+The standard library is a comprehensive macro library that makes developing for the S6 considerably easier. You can forego it, but you will likely find yourself creating an ad-hoc library of macros as you develop your program anyway, so it is not recommended.
+
+The standard library turns:
+
+```asm
+       subleq z z next0
+next0: subleq a z next1
+next1: subleq z b next2
+next2: 
+```
+
+Into:
+
+```asm
+add a b
+```
+
+### Operand Types
+
+Most of this section documents the macros that the standard library implements, so you should understand how they are described:
+
+- If a macro accepts an operand and is described as directly manipulating it (such as reading or storing into it), then that operand should be a memory address (usually from an identifier). These operands are referred to as register-type. This is the only type that accepts `#`-prefixed immediates.
+- If an operand is described as pointer-type, then it is first read as a register, and the value it stores is used (16-bit, big-endian) as another memory address pointing to the actual target.
+- If an operand is described as label-type, then it uses its value directly as an immediate. _Do not_ pass a `#`-prefixed immediate to these operands. Instead, pass a memory address - the memory address will be converted to an immediate internally by the macro. This type is used by `lptr x y`, for example, to load the address of an identifier into a register.
+
+Unless otherwise noted, operands are register-type.
+
+Note that S6ASM itself does not use a typing system, so these are merely conventions, and often incorrect results will be produced if you break them, as opposed to assembler errors.
+
+### Memory layout
+
+The assembler reserves access to RAM addresses `0x7f00` onwards for internal use - unless you absolutely know what you are doing, do not touch these addresses, as how individual macros use them is subject to change between addresses. Also, identifiers prefixed with `stdlib_` should be treated as internal, and not used. This manual does not document those identifiers, but you can see the source code for the standard library if you are curious.
+
+### Fundamental macros
+
+Much of the standard library is implemented on top of a group of 'fundamental' macros, which implement the most primitive operations. Here is a list:
+
+- `sub x y`: Subtracts X from Y; stores in y
+- `clear x`: Sets X to zero.
+- `add x y`: Adds X to Y; stores in y
+- `inc x`:   Adds one to X; stores in X
+- `dec x`:   Subtracts one from X; stores in X
+- `mov x y`: Copies the contents in X into Y
+- `jmp x`:   Moves program execution to X
+
+### Branching macros
+
+These macros compare a value to 0. If the comparison is true, they jump to a new address. They are the simplest form of control flow.
+
+These macros interpret X as signed registers.
+
+- `ble x y`: Branches to Y if X <= 0
+- `bgt x y`: Branches to Y if X > 0
+- `beq x y`: Branches to Y if X = 0
+- `bne x y`: Branches to Y if X != 0
+- `dbgt x y`: Decrements X. Branches to Y if result <= 0
+
+### Comparison macros
+
+These macros interpret X and Y as signed registers.
+
+- `ceq x y z`: Branches to Z if X = Y
+- `cgt x y z`: Branches to Z if X > Y. Expands to an awful lot of code; use it sparingly
+
+### Special macros
+
+These macros perform miscellaenous specialised actions.
+
+- `halt`:   Immediately shuts down the machine by jumping to `halt`
+- `freeze`: Enters the machine into an endless loop. You can also jump to `freeze` to do this
+- `out x`:  Outputs X as an ASCII value
+- `in x`:   Sets X to the value in the serial input register
+- `pin x`:  Waits for a character from the serial and sets X to it
+
+### 16-bit helpers
+
+These macros wrap some of the other macros to implement 16-bit operations. That means that some of these macros take _wide_ registers, which are made up of 2-bytes, in big-endian order. These wide registers are referred to as _words_.
+
+- `lptr x y`:  Load the address X into word Y. X is label-type
+- `movw x y`:  Copy word X into word Y
+- `incw x`:    Add one to the word X
+- `decw x`:    Subtract one from the word X
+- `addbw x y`: Add the normal register X to the word Y; stores in Y
+
+### Self-modifiers
+
+These macros take pointer-type operands, implementing indirect addressing.
+
+They are usually quite slow and expand to a lot of code, so use them sparingly.
+
+- `jtp x`: Jump through pointer X
+- `ld x y`: Copy the value in pointer X to register Y.
+- `st x y`: Store the value in register X to pointer Y.
+
+### Bitwise macros
+
+Currently, only bitwise NOT is supported, as bitwise operations are extremely complicated to implement in SUBLEQ. When other operations are supported, they will likely be the slowest, biggest macros in the standard library.
+
+- `not x y`: Store the bitwise NOT of X in Y (Y can be the same as X)
+
+### Constants
+
+The standard library defines these constants:
+
+- `in`: The serial input register, `0xffff`
+- `out`: The serial output register, `0xfffe`
+- `halt`: The machine shutdown address, `0xfffe`
+- `freeze`: Jumps here enter an infinite loop. The value is not fixed.
+- `_`: This is a register conventionally used for results that will be discarded. For example, you can use `pin _` to pause for input, but discard the key.
