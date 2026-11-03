@@ -281,9 +281,9 @@ done:
 
   .macro ldw x y
     ld x y
-    movw x (stdilb_tmpw7 1 +)
-    incw stdlib_tmp1
-    ld stdlib_tmp1 (y 1 +)
+    movw x stdlib_tmpw7
+    incw stdlib_tmpw7
+    ld stdlib_tmpw7 (y 1 +)
   .endmacro
 
   ; BITWISE OPERATIONS
