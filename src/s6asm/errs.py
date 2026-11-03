@@ -46,3 +46,5 @@ class AsmWordWidthError(AsmError):
     code: int = 9
 class AsmExpressionError(AsmError):
     code: int = 10
+class AsmRequireError(AsmError):
+    code: int = 11

@@ -502,6 +502,7 @@ These are the types of error that `s6asm` may produce:
 - Recursion Error (code 8)
 - Word Width Error (code 9)
 - Expression Error (code 10)
+- Require Error (code 11)
 
 To disable ANSI colour output in error messages, set the `NO_COLOR` environment variable.
 

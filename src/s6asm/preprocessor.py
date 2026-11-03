@@ -126,10 +126,13 @@ def is_printable_ascii(c: int) -> bool:
 
 # - recursively expand macros to their contents
 # - insert contents of includes
-def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True) -> Iterator[Token]:
+def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<unknown>", allow_stdlib: bool=True, included: set[str]|None=None) -> Iterator[Token]:
     if macros is None: macros = {}
     current_macro = None
     macro_definition = None
+
+    if included is None:
+        included = set()
 
     for tok in resolve_local_labels(source, path):
         if tok.directive == "macro":
@@ -167,6 +170,7 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                (ident[0] == ident[-1] and ident[0] in ('"', "'"))
                or (ident[0] == "<" and ident[-1] == ">")):
                 raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
+            included.add(ident)
             stdlib = ident[0] == "<"
             include_path = ident[1:-1]
 
@@ -179,7 +183,14 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
 
             if not file.is_file():
                 raise AsmIncludeError(f"no such file {str(file)!r}", tok)
-            yield from expand_macros(file.read_text(encoding="utf-8"), macros, path=include_path, allow_stdlib=False)
+            yield from expand_macros(file.read_text(encoding="utf-8"), macros,
+                                     path=include_path, allow_stdlib=False,
+                                     included=included)
+
+        elif tok.directive == "require":
+            name = tok.operands[0]
+            if name not in included:
+                raise AsmRequireError(f"missing required include to {name!r}", tok)
 
         # part of a macro definition
         elif current_macro:
@@ -309,6 +320,9 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             allocator = make_expr(tok.operands[0]).evaluate(labels, tok)
             if not (0x0000 <= allocator <= 0xffff):
                 raise AsmBankError("cannot fit bank in address space", tok)
+
+        elif tok.directive == "require":
+            ensure_args(tok, 1)
 
     return labels
 
