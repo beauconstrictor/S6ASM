@@ -248,15 +248,15 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     allocator = 0
 
-    def validate_new_ident(name: str) -> None:
+    def validate_new_ident(name: str, tok: Token) -> None:
         if name in labels:
             raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
-        if name.startswith("#"):
+        if name.startswith("#") and tok.path != "immediates":
             raise AsmSyntaxError("identifiers cannot begin with a '#'", tok)
 
     for tok in tokens:
         if tok.label:
-            validate_new_ident(tok.label)
+            validate_new_ident(tok.label, tok)
             labels[tok.label] = pc
 
         if tok.a is not None:
@@ -278,7 +278,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
             ensure_args(tok, 2)
             name = tok.operands[0]
             assert not isinstance(name, Expression)
-            validate_new_ident(name)
+            validate_new_ident(name, tok)
             labels[name] = make_expr(tok.operands[1]).evaluate(labels, tok)
 
         elif tok.directive and tok.directive.removesuffix("z") in ("ascii", "string"):
@@ -300,7 +300,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
                 raise AsmBankError("cannot fit reserve in address space", tok)
             name = tok.operands[1]
             assert not isinstance(name, Expression)
-            validate_new_ident(name)
+            validate_new_ident(name, tok)
             labels[name] = allocator
             allocator += size
 
