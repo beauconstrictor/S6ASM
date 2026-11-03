@@ -173,6 +173,8 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
                (ident[0] == ident[-1] and ident[0] in ('"', "'"))
                or (ident[0] == "<" and ident[-1] == ">")):
                 raise AsmSyntaxError("include path must be surrounded by angled brackets or quotes", tok)
+            if ident in included:
+                raise AsmIncludeError(f"the file {ident!r} is already included", tok)
             included.add(ident)
             stdlib = ident[0] == "<"
             include_path = ident[1:-1]
