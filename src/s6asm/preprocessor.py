@@ -146,7 +146,10 @@ def expand_macros(source: str, macros: dict[str, Macro]|None=None, path: str="<u
             for o in tok.operands:
                 assert not isinstance(o, Expression)
                 operands.append(o)
-            current_macro = Macro([], operands[0], set(), operands[1:])
+            name = operands[0]
+            if name.startswith("."):
+                raise AsmSyntaxError("macro names cannot start with '.'", tok)
+            current_macro = Macro([], name, set(), operands[1:])
 
             if tok.label:
                 current_macro.tokens.append(Token.using(f"{tok.label}:", tok))
