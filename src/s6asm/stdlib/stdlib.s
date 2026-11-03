@@ -9,7 +9,7 @@
 
   ; ram addresses from 0x7f00 onward are reserved for the stdlib
   ; increasing layers of macros have to use the registers increasingly
-  ; low in this list
+  ; further down this list (higher numbers)
   .bank 0x7f00
   .res 1 stdlib_tmp0
   .res 1 stdlib_tmp1
@@ -18,6 +18,10 @@
   .res 1 stdlib_tmp4
   .res 1 stdlib_tmp5
   .res 1 stdlib_tmp6
+  .res 1 stdlib_tmp7
+
+  ; words only start needing to be used at layer 7 and beyond
+  .res 2 stdlib_tmpw7
 
   ; useless register for user programs
   .res 2 _

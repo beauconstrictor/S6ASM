@@ -1,6 +1,6 @@
 .PHONY: run
 run:
-	s6asm --traceback -se test.s
+	s6asm -se test.s
 
 .PHONY: install
 install:
