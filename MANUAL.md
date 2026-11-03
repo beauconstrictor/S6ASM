@@ -1,6 +1,6 @@
-# S6ASM Complete Manual
+# S6ASM Reference Manual
 
-___This manual is unfinished.__
+__This manual is unfinished.__
 
 S6ASM is a comprehensive, albeit immature, macro assembler and development toolchain for the Ozpex S6 platform.
 
@@ -425,6 +425,30 @@ However, immediates provide a more direct solution: wherever an expression begin
 #21
   .byte 21
 ```
+
+### Local Labels
+
+S6ASM supports _local labels_ which only remain in scope for a short time, allowing you to reuse common labels names like `loop` and `done`, prefixing them with `@`.
+
+Local labels remain in scope until the next regular label, at which point all existing local labels become innaccessible. Here is an example of local labels in action:
+
+```asm
+func1:
+  mov #50 i
+@loop:
+  out #'A'
+  dbgt i @loop
+
+func2:
+  mov #'9' c
+  mov #10 i
+@loop:
+  out i
+  dec i
+  dbgt i @loop
+```
+
+Local labels _must_ be scoped to a regular label. This means that you cannot use a local label before the first regular label in your program. Macros reset this, meaning that a macro must contain a regular label before any local labels that it uses. Note that it is rare that a macro will be large enough for local labels to be useful, as macros create their own scope for regular labels anyway.
 
 ## Architecture
 
