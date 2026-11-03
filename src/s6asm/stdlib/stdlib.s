@@ -279,6 +279,13 @@ done:
 done:
   .endmacro
 
+  .macro ldw x y
+    ld x y
+    movw x (stdilb_tmpw7 1 +)
+    incw stdlib_tmp1
+    ld stdlib_tmp1 (y 1 +)
+  .endmacro
+
   ; BITWISE OPERATIONS
  
   ; invert x and store in y (can be x again)

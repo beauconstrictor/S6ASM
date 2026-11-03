@@ -616,3 +616,14 @@ The standard library defines these constants:
 - `halt`: The machine shutdown address, `0xfffe`
 - `freeze`: Jumps here enter an infinite loop. The value is not fixed.
 - `_`: This is a register conventionally used for results that will be discarded. For example, you can use `pin _` to pause for input, but discard the key.
+
+## Undocumented Areas
+
+As S6ASM is still in development, new features are arriving faster than documentation can keep up with. As such, some newer features do remain undocumented for a time; here is a list of those features:
+
+- S6ASM programming conventions
+- New `stdlib` macros: `ldw`
+- New standard library modules:
+    - `stdhex`
+    - `stdio`
+- New directive: `require`
