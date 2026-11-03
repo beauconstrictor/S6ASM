@@ -409,6 +409,12 @@ These directives are the same as above, except they append a trailing null byte 
 
 The `.include` directive is handled by the preprocessor, and is substituted for the contents of another file. The `path` must either be surrounded by quotes or angled brackets. If quotes are used, then the file is searched for in the current source file's directory (relative paths are allowed), and if angled brackets are used, then the file is searched for within the assembler's standard library collection.
 
+You cannot include the same path more than once, as this can produce duplicate definition errors, so is explicitly prohibited. If you need duplicate code, you can usually achieve this with a macro, potentially in it's own included file, if you prefer.
+
+#### `.require path`
+
+The `.require` directive throws a preprocessor error if a file is not included by the time the require is encountered. By using require and explicitly preventing duplicate includes (see above), consuming code is completely aware of what modules it is importing, and what is contributing to code size increases (a common problem on the S6).
+
 ### Immediates
 
 Immediates are another feature implemented by the preprocessor.
@@ -627,4 +633,3 @@ As S6ASM is still in development, new features are arriving faster than document
 - New standard library modules:
     - `stdhex`
     - `stdio`
-- New directive: `require`
