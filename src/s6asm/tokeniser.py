@@ -7,9 +7,7 @@ from .errs import *
 # TODO: unary operators in expressions, like !
 # TODO: substitution doesn't substitute in the first token if it is
 #       an immediate
-
-# TODO: unrelated, but use the heading 'the illusion of an
-#       instruction' in your next blog post
+# TODO: actually enforce 'require'
 
 BRACKET_CHARS = "();"
 
@@ -27,6 +25,7 @@ ALLOWED_DIRECTIVES = {
         "string",
         "include",
         "stringz",
+        "require",
         "endmacro"}
 
 def bracketise(s: object) -> str:

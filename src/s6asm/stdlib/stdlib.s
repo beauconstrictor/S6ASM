@@ -129,6 +129,12 @@ done:
     beq stdlib_tmp2 z
   .endmacro
 
+  ; branches to z if x != y
+  .macro cne x y z
+    _cmp x y
+    bne stdlib_tmp2 z
+  .endmacro
+
   ; branches to z if signed x > signed y
   .macro cgt x y z
     bgt x x_nonnegative

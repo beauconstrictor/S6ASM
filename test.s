@@ -1,44 +1,31 @@
   .include <stdlib>
   .include <stdhex>
-
-  ; this is a massive unit test for most the stdlib. run it and follow
-  ; this instructions.
-
-  .res 2 print_str
-  .res 2 print_char
+  .include <stdio>
 
   .res 1 byte
 
-  .macro print msg
-    lptr msg print_str
-loop:
-    ld print_str print_char
-    ble print_char done
-    out print_char
-    incw print_str
-    jmp loop
-done:
-  .endmacro
+  .res 256 buf
 
-get_input:
-  print @prompt
- 
-  ; TODO: actual hex input
-  pin _
-  out #'e'
-  pin _
-  out #'a'
-
-  mov #0xea byte
-  jmp received
-@prompt:
-  .asciiz "Enter a byte in hex: "
+start:
+  print prompt
+  gets buf
 
 received:
-  print @msg
+  cne (buf 2 +) #0 fail
+  from_hex buf byte fail
+  print received_msg
   hex_out byte
   out #0x0a
-  halt
-@msg:
-  .byte 0x0a
+  jmp start
+
+fail:
+  print fail_msg
+  jmp start
+
+prompt:
+  .asciiz "Enter a byte in hex: "
+received_msg:
   .asciiz "You typed: "
+fail_msg:
+  .string "Enter a single hex byte!"
+  .word 0x0a00
