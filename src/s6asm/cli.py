@@ -9,28 +9,71 @@ from importlib.metadata import version
 
 from .errs import *
 from .tokeniser import tokenise
+from .emulator import Emulator, Tape
 from .preprocessor import preprocessor
 from .linker import evaluate, assemble
-from .emulator import Emulator
+from .serial import init_term, restore_term, readc
 
-def visualise(emu: Emulator, step: int) -> None:
-    print("\033[2J\033[H", end="")
+GOTO_TAPE = "\x14" # <c-t>
 
-    print(f"step {step}:")
-    print(f"output: {emu.out}")
-    print("ram:")
+def select_tape(current_tape: Tape|None) -> Tape|None:
+    print("\033[?1049h\033[H", end="")
+    stdout.flush()
 
-    for addr in sorted(emu.writes):
-        print(f"0x{addr:04x} = 0x{emu.fetch(addr):02x}")
-    input()
+    print("S6ASM TAPE MANAGER")
+    print("------------------")
+    print()
+    if current_tape:
+        print(f"Tape: {current_tape.path}")
+        print()
+        print("[r] Rewind")
+        print("[d] Detach")
+    print("[a] Attach new tape")
+    print("[q] Return to the emulator")
 
-def debug(emu: Emulator) -> None:
-    step = 1
-    while True:
-        if not emu.halted():
-            emu.step()
-            step += 1
-        visualise(emu, step)
+    choice = readc()
+    while choice is None: choice = readc()
+
+    new_tape = None
+
+    match choice:
+        case "r":
+            assert current_tape
+            current_tape.rewind()
+            new_tape = current_tape
+        case "d":
+            assert current_tape
+            new_tape = None
+        case "a":
+            restore_term()
+            path = input("\n[path to tape] ")
+            init_term()
+            if not Path(path).is_file():
+                print(f"{path!r} is not a file")
+                sleep(1.2)
+                return select_tape(current_tape)
+            new_tape = Tape(path)
+        case "q":
+            new_tape = current_tape
+        case _:
+            return select_tape(current_tape)
+
+    print("\033[?1049l", end="")
+    stdout.flush()
+    return new_tape
+
+def emulate(binary: bytearray) -> None:
+    init_term()
+
+    emu = Emulator(binary)
+    while not emu.halted():
+        c = readc()
+        if c == GOTO_TAPE:
+            emu.attach(select_tape(emu.tape))
+        else:
+            emu.step(c)
+
+    restore_term()
 
 def error(summary: object, desc: object="", traceback: list[str]|None=None) -> None:
     red = "\033[31m" if stderr.isatty() and not getenv("NO_COLOR") else ""
@@ -122,11 +165,7 @@ def main() -> None:
         binary = assemble(file, path)
 
         if args.emulator:
-            emu = Emulator(binary)
-            while not emu.halted():
-                emu.step()
-                if args.slow_emu:
-                    sleep(0.0001)
+            emulate(binary)
         elif args.debug:
             emu = Emulator(binary)
             debug(emu)

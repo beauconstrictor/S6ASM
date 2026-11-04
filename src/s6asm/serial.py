@@ -17,7 +17,9 @@ else:
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
-    tty.setcbreak(fd)
+
+    def init_term() -> None:
+        tty.setcbreak(fd)
 
     def readc() -> str | None:
         dr, _, _ = select.select([sys.stdin], [], [], 0)
@@ -26,8 +28,11 @@ else:
         return None
 
     import atexit
-    
-    atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old_settings))
+   
+    def restore_term() -> None:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    atexit.register(restore_term)
 
 def writec(c: str) -> None:
     sys.stdout.write(c)

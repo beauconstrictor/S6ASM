@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from .errs import *
 from .serial import readc, writec
 
@@ -12,7 +14,22 @@ def within(addr: int, region: tuple[int, int]) -> bool:
     start, size = region
     return start <= addr < start + size
 
-# - emulate a binary
+class Tape:
+    def __init__(self, path: str) -> None:
+        self.path: str = path
+        self.text: bytes = Path(path).read_bytes()
+        self.pos: int = 0
+
+    def read(self) -> int|None:
+        if self.pos == len(self.text):
+            return None
+
+        self.pos += 1
+        return self.text[self.pos - 1]
+
+    def rewind(self) -> None:
+        self.pos = 0
+
 class Emulator:
     def __init__(self, image: bytearray) -> None:
         if len(image) > ROM[1]:
@@ -27,6 +44,20 @@ class Emulator:
         self.out: str = ""
         self.writes: set[int] = set()
 
+        self.last_key: str|None = None
+        self.tape: Tape|None = None
+
+    def attach(self, tape: Tape|None) -> None:
+        self.tape = tape
+
+    def read_key(self) -> str|None:
+        if self.tape:
+            i = self.tape.read()
+            return i if i is None else chr(i)
+        key = self.last_key
+        self.last_key = None
+        return key
+
     def halted(self) -> bool:
         return self.pc == HALT
 
@@ -34,7 +65,7 @@ class Emulator:
         addr &= 0xffff
 
         if addr == SERI:
-            return ord(readc() or '\0')
+            return ord(self.read_key() or '\0')
         elif within(addr, RAM):
             return self.ram[addr]
         elif within(addr, ROM):
@@ -60,7 +91,10 @@ class Emulator:
         else:
             raise ValueError("memory write out of range")
 
-    def step(self) -> None:
+    def step(self, uart_in: str|None) -> None:
+        if uart_in:
+            self.last_key = uart_in
+
         a = self.fetchw(self.pc)
         self.pc = (self.pc + 2) & 0xffff
         b = self.fetchw(self.pc)
@@ -75,4 +109,4 @@ class Emulator:
             self.pc = c
 
     def run_until_halt(self) -> None:
-        while not self.halted(): self.step()
+        while not self.halted(): self.step(readc())
