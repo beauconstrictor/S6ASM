@@ -16,15 +16,16 @@ from .serial import init_term, restore_term, readc
 
 GOTO_TAPE = "\x14" # <c-t>
 
-def select_tape(current_tape: Tape|None) -> Tape|None:
+def select_tape(emu: Emulator) -> None:
     print("\033[?1049h\033[H", end="")
     stdout.flush()
 
     print("S6ASM TAPE MANAGER")
     print("------------------")
     print()
-    if current_tape:
-        print(f"Tape: {current_tape.path}")
+    if emu.tape:
+        print(f"Tape: {emu.tape.path}")
+        print(f"Head: {emu.tape.pos} / {len(emu.tape.text)}")
         print()
         print("[r] Rewind")
         print("[d] Detach")
@@ -34,16 +35,12 @@ def select_tape(current_tape: Tape|None) -> Tape|None:
     choice = readc()
     while choice is None: choice = readc()
 
-    new_tape = None
-
     match choice:
         case "r":
-            assert current_tape
-            current_tape.rewind()
-            new_tape = current_tape
+            assert emu.tape
+            emu.tape.rewind()
         case "d":
-            assert current_tape
-            new_tape = None
+            emu.attach(None)
         case "a":
             restore_term()
             path = input("\n[path to tape] ")
@@ -51,16 +48,16 @@ def select_tape(current_tape: Tape|None) -> Tape|None:
             if not Path(path).is_file():
                 print(f"{path!r} is not a file")
                 sleep(1.2)
-                return select_tape(current_tape)
-            new_tape = Tape(path)
+                return select_tape(emu)
+            emu.attach(Tape(path))
+            return select_tape(emu)
         case "q":
-            new_tape = current_tape
+            pass
         case _:
-            return select_tape(current_tape)
+            return select_tape(emu)
 
     print("\033[?1049l", end="")
     stdout.flush()
-    return new_tape
 
 def emulate(binary: bytearray) -> None:
     init_term()
@@ -69,7 +66,7 @@ def emulate(binary: bytearray) -> None:
     while not emu.halted():
         c = readc()
         if c == GOTO_TAPE:
-            emu.attach(select_tape(emu.tape))
+            emu.attach(select_tape(emu))
         else:
             emu.step(c)
 
