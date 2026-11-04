@@ -163,6 +163,7 @@ dump:
 @not_done:
   djnz counter @loop
   out #0x0a
+  ; TODO: implement ascii output
   jmp @line
 
 welcome:
