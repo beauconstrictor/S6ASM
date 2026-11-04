@@ -16,8 +16,8 @@
     hex_out (x 1 +)
   .endmacro
 
-  ; first char comes from x, second from y (usually just x + 1); stores value in z
-  ; branches to z if the hex value is invalid
+  ; read the two hex chars at x and store the value in y
+  ; branches to z if the hex is invalid
   .macro from_hex x y z
     lptr stdlib_hex_in_lookup_msn stdlib_tmpw7
     addbw x stdlib_tmpw7

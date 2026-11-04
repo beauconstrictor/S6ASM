@@ -238,9 +238,7 @@ done:
 
   ; SELF-MODIFIERS
 
-  ; doesn't jump to addr, jumps to the address at addr,
-  ; where addr contains the high byte and addr + 1 contains the low
-  ; byte
+  ; doesn't jump to addr, jumps to the address at addr (as a ptr)
   .macro jtp x
     ; writes this:
     ;         0x7f00 0x7f00 x

@@ -34,3 +34,9 @@ bksp:
 done:
     st #0 stdlib_tmpw7
   .endmacro
+
+  ; write a single byte from ptr x into y and increment x
+  .macro readc x y
+    ld x y
+    incw x
+  .endmacro
