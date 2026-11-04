@@ -163,6 +163,13 @@ compare:
 done:
   .endmacro
 
+  ; branches to z if signed x <= signed y
+  .macro cle x y z
+    cgt x y done
+    jmp z
+done:
+  .endmacro
+
   ; SPECIAL OEPRATIONS
 
   .macro halt

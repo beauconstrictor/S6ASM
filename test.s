@@ -53,72 +53,79 @@ execute:
   readc parse c
   ceq c #'.' halt
   ceq c #0x20 execute
-  ceq c #'?' @read_byte
-  ceq c #'a' @read_ascii
-  ceq c #'!' @jump_to
-  ceq c #'/' @read_addr
-  ceq c #':' @goto
-  ceq c #'l' @begin_tape_read
-  ceq c #'r' @return_from_tape
+  ceq c #'?' read_byte
+  ceq c #'a' read_ascii
+  ceq c #'!' jump_to
+  ceq c #'/' read_addr
+  ceq c #':' goto
+  ceq c #'l' begin_tape_read
+  ceq c #'r' return_from_tape
   ceq c #0x00 readline
 
 ; falls through to here
-@write_byte:
+write_byte:
   readc parse (c 1 +)
-  from_hex c byte @fail
+  from_hex c byte fail
   st byte addr
   incw addr
   jmp execute
 
-@fail:
+fail:
   print fail_msg
   jmp readline
 
-@read_byte:
+read_byte:
   ld addr byte
   hex_out byte
   incw addr
   out #0x20
   jmp execute
 
-@read_ascii:
+read_ascii:
   ld addr byte
+  cgt byte #126 @not_ascii
+  cle byte #31  @not_ascii
   out byte
   incw addr
   out #0x20
   jmp execute
+@not_ascii:
+  out #0x5c
+  out #'x'
+  hex_out byte
+  jmp execute
 
-@jump_to:
+jump_to:
   jtp addr
 
-@read_addr:
+read_addr:
   hexw_out addr
   out #0x20
   jmp execute
 
-@goto:
+goto:
   readc parse c
   readc parse (c 1 +)
-  from_hex c addr @fail
+  from_hex c addr fail
   readc parse c
   readc parse (c 1 +)
-  from_hex c (addr 1 +) @fail
+  from_hex c (addr 1 +) fail
   jmp execute
 
-@begin_tape_read:
+begin_tape_read:
   readc parse c
-  cne c #'o' @fail
+  cne c #'o' fail
   readc parse c
-  cne c #'a' @fail
+  cne c #'a' fail
   readc parse c
-  cne c #'d' @fail
+  cne c #'d' fail
   readc parse c
-  cne c #0x00 @fail
+  cne c #0x00 fail
   mov #0x01 tape
   print tape_msg
   jmp readline
 
-@return_from_tape:
+return_from_tape:
    mov #0x00 tape
    print loaded_msg
    jmp readline
