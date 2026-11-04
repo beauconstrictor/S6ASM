@@ -127,6 +127,7 @@ begin_tape_read:
 @wait_for_dot:
   pin byte
   cne byte #'.' @wait_for_dot
+  print loading_msg
   jmp readline
 
 return_from_tape:
@@ -144,6 +145,9 @@ fail_msg:
   .byte 0x00
 tape_msg:
   .asciiz "[ INSERT TAPE ]"
+loading_msg:
+  .byte 0x0d
+  .asciiz "[   LOADING   ]"
 loaded_msg:
-  .byte 0x0a
-  .asciiz "LOADED."
+  .byte 0x0d
+  .string "[    DONE.    ]"
