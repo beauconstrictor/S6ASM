@@ -93,6 +93,7 @@ read_ascii:
   out #0x5c
   out #'x'
   hex_out byte
+  out #0x20
   jmp execute
 
 jump_to:
