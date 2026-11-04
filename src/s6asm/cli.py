@@ -11,7 +11,7 @@ from .errs import *
 from .tokeniser import tokenise
 from .emulator import Emulator, Tape
 from .preprocessor import preprocessor
-from .linker import evaluate, assemble
+from .linker import evaluate, assemble, as_tape
 from .serial import init_term, restore_term, readc
 
 GOTO_TAPE = "\x14" # <c-t>
@@ -66,7 +66,7 @@ def emulate(binary: bytearray) -> None:
     while not emu.halted():
         c = readc()
         if c == GOTO_TAPE:
-            emu.attach(select_tape(emu))
+            select_tape(emu)
         else:
             emu.step(c)
 
@@ -112,7 +112,10 @@ def main() -> None:
     mode.add_argument("-l", "--linker", action="store_true",
                       help="convert the program into a series of subleq instructions and byte directives.")
     mode.add_argument("-e", "--emulator", action="store_true",
+
                       help="execute the program using a built-in S6 emulator.")
+    mode.add_argument("-m", "--monitor-tape", action="store_true",
+                      help="returns assembly in a format suitable for an S6MON tape.")
 
     parser.add_argument("-s", "--slow-emu", action="store_true",
                       help="slows down the emulator, to make it easier to identify performance issues.")
@@ -155,6 +158,9 @@ def main() -> None:
         elif args.linker:
             for tok in evaluate(file, path=path):
                 print(tok)
+            return
+        elif args.monitor_tape:
+            print(" ".join(as_tape(file, path)))
             return
 
         binary = assemble(file, path)

@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from typing import cast
+from collections.abc import Generator, Iterator
 
 from .errs import *
 from .tokeniser import make_expr, Token, Expression
@@ -7,7 +8,7 @@ from .preprocessor import preprocessor, find_labels
 # TODO: local labels with @ sign, scoped to last global label
 
 # - remove all labels and expressions from the program
-def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
+def evaluate(source: str, path: str="<unknown>") -> Generator[Token, None, int|None]:
     tokens = list(preprocessor(source, path))
     labels = find_labels(tokens)
 
@@ -83,6 +84,8 @@ def evaluate(source: str, path: str="<unknown>") -> Iterator[Token]:
         tok.label = None
         yield tok
 
+    return initial_origin 
+
 def extend_with_word(binary: bytearray, word: int) -> None:
     word &= 0xffff
     # big endian
@@ -102,3 +105,27 @@ def assemble(source: str, path: str="<unknown>") -> bytearray:
 
     return binary
 
+# - turn a program into an S6MON tape
+def as_tape(source: str, path: str="<unknown>") -> Iterator[str]:
+    linker = evaluate(source, path)
+    origin = None
+
+    try:
+        while True:
+            next(linker)
+    except StopIteration as e:
+        origin = cast(int|None, e.value)
+
+    if origin is None:
+        raise AsmOriginError("source contains no origin directive")
+
+    binary = assemble(source, path)
+
+    # yield ".\n"
+
+    for i, byte in enumerate(binary):
+        if i % 16 == 0:
+            yield f"\n:{origin+i:04x}"
+        yield f"{byte:02x}"
+
+    # yield "\nr\n"
