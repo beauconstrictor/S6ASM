@@ -104,13 +104,19 @@ done:
     ble stdlib_tmp1 y
   .endmacro
 
-  ; decrements x, then branches to y if x is greater than stdlib_tmp0
+  ; decrements x, then branches to y if x is greater than 0
   .macro dbgt x y
     ; could implement this using dec and bgt, but it would be bigger
     ; than necessary
     subleq #1 x done
     jmp y
 done:
+  .endmacro
+
+  ; decrements x, then branches to y if result is not 0
+  .macro djnz x y
+    dec x
+    bne x y
   .endmacro
 
   ; COMPARISON OPERATIONS

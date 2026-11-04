@@ -294,7 +294,7 @@ s6asm -e test.s
 
 S6ASM uses a very simple line-oriented syntax.
 
-First, any line (execpt one with an `.org` directive) may be prefixed with a label. Lines with labels may not be indented, and the label must end with a colon and a space. If a label is not used, the line must be indented by any amount (this can vary arbitrarily between lines).
+First, any line (except one with an `.org` directive) may be prefixed with a label. Lines with labels may not be indented, and the label must end with a colon and a space. If a label is not used, the line must be indented by any amount (this can vary arbitrarily between lines).
 
 The rest of the line is the split into _words_, which are whitespace separated tokens. The significance of these words is decided only once the entire line is tokenised. If you need whitespace within a word, wrap that word in parentheses. You can also wrap it in single quotes, but the quotes will themselves be included in the word (character escapes are _not_ supported, and `\'` will immediately terminate the quotation). You can also include parentheses or quotes within a word. For instance, `a b(c d)` will become two words. The first contains exactly `a` and the second contains exactly `bc d`. Finally, if a semicolon is encountered outside of parentheses or quotes, then the rest of the line (including the semicolon) is discarded as a comment.
 
@@ -318,15 +318,15 @@ label: subleq a b c ; any line can begin with a label
 
 Any character is allowed in an identifier, with these exceptions in certain cases:
 
-* An identifier may not begin with a '#' character, to distinguish regular identifiers from immediates
+* Identifiers that you create may not begin with a '#' character, because these identifiers are reserved for immediate values, and allowing them in regular identifies would create ambiguity.
 
-Idenfitifers have their own _namespace_, called the label namespace, which is independent of the macro namespace. This means macros and identifiers can share a name. Identifiers are a mapping from a human-readable name to a numeric value, and can be created in a few ways:
+Identifiers have their own _namespace_, called the label namespace, which is independent of the macro namespace. This means macros and identifiers can share a name. Identifiers are a mapping from a human-readable name to a numeric value, and can be created in a few ways:
 
 1. Labels - if a line begins with a label, then that identifier is set to the address of the line containing the label.
 2. Constant - use the `.const ident val` directive to directly set the value of an identifier.
 3. Banks - you can create 'registers' (global variables with static memory addresses, SUBLEQ does not have hardware registers) using the `.bank addr` and `.res size ident` directives. Read more about these in the _Syntax_ > _Directives_ section.
 
-Once an identifier is created, it's value cannot be changed.
+Once an identifier is created, its value cannot be changed.
 
 ### Macros
 
@@ -385,7 +385,7 @@ If you choose not to include the standard library, then your code must use an or
 
 The `.res` and `.bank` directives are used to automatically allocate memory addresses for variables, conventionally referred to as registers (as they are often used where a more conventional architecture would use hardware registers).
 
-These directives are implemented by the linker, which keeps a pointer to a memory address, initialised to `0x0000`. When a `.bank` directive is encountered, this pointer is directly set to it's value. Then, when a `.res` directive is encountered, a new identifier is created with it's value equal to the current value of the linker's allocation pointer, which is then incremented by `size`.
+These directives are implemented by the linker, which keeps a pointer to a memory address, initialised to `0x0000`. When a `.bank` directive is encountered, this pointer is directly set to its value. Then, when a `.res` directive is encountered, a new identifier is created with its value equal to the current value of the linker's allocation pointer, which is then incremented by `size`.
 
 This allows you to easily map identifiers to sequential memory, without accidentally creating overlaps, or leaving gaps.
 
@@ -488,7 +488,7 @@ The S6 memory map is extremely simple:
 - `0x8000` - `0xfffd`: ROM
 - `0xfffe`: UART output (writes here go to the serial output)
 - `0xfffe`: _Also_ the halt address, when jumped to
-- `0xffff`: UART input (returns the last character recieved by the UART, or NUL if no character was recieved since the last read)
+- `0xffff`: UART input (returns the last character received by the UART, or NUL if no character was received since the last read)
 
 ### Tape I/O
 
@@ -496,7 +496,7 @@ Inkeeping with the S6's very minimal philosophy, persistent storage is as simple
 
 You can insert 'tapes' which temporarily replace the function of the UART, specifically for serial reads. While a tape is connected, serial reads will return a predefined datastream, byte by byte from the tape, rather than the regular keyboard input.
 
-This system is intended for interactive command interpreters (like Forth, or a hex monitor), to allow programs to be installed on the machine without replacing the ROM. The idea is that you put the command interpreter in a special mode where the usual input echoing is disabled and then you can connect the tape. Since the interpreter will be listening for input, it will recieve whatever data is in the tape, and interpret it as commands of some sort. These could be regular commands for the program, or in a special tape-specific format. The tape can then send a final command that returns the interpreter to it's normal mode. This is a possible implementation; a program can use tapes in any way it needs.
+This system is intended for interactive command interpreters (like Forth, or a hex monitor), to allow programs to be installed on the machine without replacing the ROM. The idea is that you put the command interpreter in a special mode where the usual input echoing is disabled and then you can connect the tape. Since the interpreter will be listening for input, it will receive whatever data is in the tape, and interpret it as commands of some sort. These could be regular commands for the program, or in a special tape-specific format. The tape can then send a final command that returns the interpreter to it's normal mode. This is a possible implementation; a program can use tapes in any way it needs.
 
 There are some obvious flaws in this design (for instance, what happens if a tape is removed before it finishes being read - the software will not know to stop listening for input), but this is inevitable, as tapes are designed to be as simple as possible.
 
@@ -597,7 +597,7 @@ These macros interpret X and Y as signed registers.
 
 ##### Special macros
 
-These macros perform miscellaenous specialised actions.
+These macros perform miscellaneous specialised actions.
 
 - `halt`:   Immediately shuts down the machine by jumping to `halt`
 - `freeze`: Enters the machine into an endless loop. You can also jump to `freeze` to do this
@@ -644,7 +644,7 @@ The standard library defines these constants:
 
 #### `stdhex`
 
-The module requires `stdilb`.
+The module requires `stdlib`.
 
 `stdhex` implements conversion macros for hexadecimal. This module currently employs a very large (1K) lookup table to assist in these conversions, so you should be aware of this before including. These macros are implemented:
 

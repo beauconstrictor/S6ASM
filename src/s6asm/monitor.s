@@ -15,7 +15,7 @@
   ; - if a ':', read 4 chars as hex to set addr
   ; - if a l, ensure they typed 'load' and set tape to 0x01
   ; - if a r, set tape to 0x00
-  ;   if a >, read 4 chars as hex and TODO
+  ;   if a >, read 4 chars as hex and dump the address from current addr until < target
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
   
@@ -29,6 +29,7 @@
   .res 256 buf
   .res 2 parse
   .res 2 addr
+  .res 2 target
   .res 1 byte
   .res 1 tape
   .res 2 c
@@ -140,7 +141,29 @@ return_from_tape:
    jmp readline
 
 dump:
+  readc parse c
+  readc parse (c 1 +)
+  from_hex c target fail
+  readc parse c
+  readc parse (c 1 +)
+  from_hex c (target 1 +) fail
+@line:
   mov #16 counter
+  hex_out addr
+  hex_out (addr 1 +)
+  out #0x20
+  out #0x20
+@loop:
+  ld addr byte
+  incw addr
+  hex_out byte
+  out #0x20
+  cne addr target @not_done
+  ceq (addr 1 +) (target 1 +) execute
+@not_done:
+  djnz counter @loop
+  out #0x0a
+  jmp @line
 
 welcome:
   .string "S6MON v0.1.0"
