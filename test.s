@@ -13,8 +13,8 @@
   ; - if a space, skip to next char
   ; - if a null, read a new line
   ; - if a ':', read 4 chars as hex to set addr
-  ; - if a t, print tape message and set tape to 0x01 (disables output)
-  ; - if a r, set tape to 0x00 (enables output)
+  ; - if a l, ensure they typed 'load' and set tape to 0x01
+  ; - if a r, set tape to 0x00
   ;   if a >, read 4 chars as hex and TODO
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
@@ -58,7 +58,7 @@ execute:
   ceq c #'!' @jump_to
   ceq c #'/' @read_addr
   ceq c #':' @goto
-  ceq c #'t' @begin_tape_read
+  ceq c #'l' @begin_tape_read
   ceq c #'r' @return_from_tape
   ceq c #0x00 readline
 
@@ -106,9 +106,17 @@ execute:
   jmp execute
 
 @begin_tape_read:
+  readc parse c
+  cne c #'o' @fail
+  readc parse c
+  cne c #'a' @fail
+  readc parse c
+  cne c #'d' @fail
+  readc parse c
+  cne c #0x00 @fail
   mov #0x01 tape
   print tape_msg
-  jmp execute
+  jmp readline
 
 @return_from_tape:
    mov #0x00 tape
