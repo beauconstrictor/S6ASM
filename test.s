@@ -83,10 +83,10 @@ read_byte:
 
 read_ascii:
   ld addr byte
+  incw addr
   cgt byte #126 @not_ascii
   cle byte #31  @not_ascii
   out byte
-  incw addr
   out #0x20
   jmp execute
 @not_ascii:
