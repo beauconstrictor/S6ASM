@@ -69,6 +69,14 @@ This should output your installed version of `s6asm`.
 
 ### First program
 
+The S6ASM program we will write will be loaded directly into ROM, so we can easily test it. This means we need to start our program with this line:
+
+```asm
+  .org 0x8000
+```
+
+This tells the assembler that our program starts at address `0x8000`, which is where the ROM is mapped on an S6.
+
 Most S6ASM programs that you write will begin with an `.include` directive referencing the standard library, which adds functionality to your program and makes development significantly easier:
 
 ```asm
@@ -135,6 +143,8 @@ s6asm -e test.s
 Your completed program should look like this:
 
 ```asm
+  .org 0x8000
+
   .include <stdlib> ; gives us some starting macros to use
 
   .res 1 letter     ; creates a register, 1-byte in size

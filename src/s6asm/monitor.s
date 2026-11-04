@@ -18,6 +18,8 @@
   ;   if a >, read 4 chars as hex and TODO
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
+  
+  .org 0x8000
 
   .include <stdlib>
   .include <stdhex>
@@ -138,7 +140,7 @@ return_from_tape:
    jmp readline
 
 dump:
-
+  mov #16 counter
 
 welcome:
   .string "S6MON v0.1.0"

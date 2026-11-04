@@ -15,6 +15,8 @@ python -m pip install git+https://github.com/beauconstrictor/s6asm.git
 This sample program prints the uppercase alphabet:
 
 ```
+  .org 0x8000
+
   .include <stdlib>
 
   .res 1 c

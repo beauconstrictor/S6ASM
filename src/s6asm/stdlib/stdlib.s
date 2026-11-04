@@ -1,5 +1,3 @@
-  .org 0x8000 
-
   ; MEMORY MAP
   .const in 0xffff
   .const out 0xfffe
