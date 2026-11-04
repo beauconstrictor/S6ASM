@@ -116,8 +116,6 @@ def main() -> None:
                       help="convert the program into a series of subleq instructions and byte directives.")
     mode.add_argument("-e", "--emulator", action="store_true",
                       help="execute the program using a built-in S6 emulator.")
-    mode.add_argument("-d", "--debug", action="store_true",
-                      help="emulate the program and watch what it does, step by step.")
 
     parser.add_argument("-s", "--slow-emu", action="store_true",
                       help="slows down the emulator, to make it easier to identify performance issues.")
@@ -166,18 +164,13 @@ def main() -> None:
 
         if args.emulator:
             emulate(binary)
-        elif args.debug:
-            emu = Emulator(binary)
-            debug(emu)
         else:
             stdout.buffer.write(binary)
     except AsmError as e:
         if args.traceback:
             raise
         else:
-            if args.debug:
-                raise
-            elif e.traceback:
+            if e.traceback:
                 assert e.location is not None
                 error(e.location, e.message, [e.location, *e.traceback])
             elif e.location:
