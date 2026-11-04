@@ -2,7 +2,7 @@
   ;
   ; :1234 12 34 56 78
   ; :1234?
-  ; :1234>5678
+  ; :1234>56
   ; 
   ; read a char and then:
   ; - if a ?, print in hex the byte at addr and increment addr
@@ -23,6 +23,7 @@
   .include <stdhex>
   .include <stdio>
 
+  .res 1 counter
   .res 256 buf
   .res 2 parse
   .res 2 addr
@@ -60,6 +61,7 @@ execute:
   ceq c #':' goto
   ceq c #'l' begin_tape_read
   ceq c #'r' return_from_tape
+  ceq c #'>' dump
   ceq c #0x00 readline
 
 ; falls through to here
@@ -134,6 +136,9 @@ return_from_tape:
    mov #0x00 tape
    print loaded_msg
    jmp readline
+
+dump:
+
 
 welcome:
   .string "S6MON v0.1.0"

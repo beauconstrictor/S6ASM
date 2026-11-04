@@ -531,7 +531,9 @@ Into:
 add a b
 ```
 
-### Operand Types
+In addition, the standard library is divided into various _modules_, which each implement a logical set of functionality. `stdlib` provides the base macro library that you will almost always want to include. Then, other modules provide more specific functionality, such as `stdio` for higher level I/O operations, and `stdhex` for converting to and from hex representations of bytes and words.
+
+### Typing
 
 Most of this section documents the macros that the standard library implements, so you should understand how they are described:
 
@@ -543,11 +545,15 @@ Unless otherwise noted, operands are register-type.
 
 Note that S6ASM itself does not use a typing system, so these are merely conventions, and often incorrect results will be produced if you break them, as opposed to assembler errors.
 
-### Memory layout
+### Modules
+
+#### `stdlib`
+
+##### Memory layout
 
 The assembler reserves access to RAM addresses `0x7f00` onwards for internal use - unless you absolutely know what you are doing, do not touch these addresses, as how individual macros use them is subject to change between addresses. Also, identifiers prefixed with `stdlib_` should be treated as internal, and not used. This manual does not document those identifiers, but you can see the source code for the standard library if you are curious.
 
-### Fundamental macros
+##### Fundamental macros
 
 Much of the standard library is implemented on top of a group of 'fundamental' macros, which implement the most primitive operations. Here is a list:
 
@@ -559,7 +565,7 @@ Much of the standard library is implemented on top of a group of 'fundamental' m
 - `mov x y`: Copies the contents in X into Y
 - `jmp x`:   Moves program execution to X
 
-### Branching macros
+##### Branching macros
 
 These macros compare a value to 0. If the comparison is true, they jump to a new address. They are the simplest form of control flow.
 
@@ -571,14 +577,15 @@ These macros interpret X as signed registers.
 - `bne x y`: Branches to Y if X != 0
 - `dbgt x y`: Decrements X. Branches to Y if result > 0
 
-### Comparison macros
+##### Comparison macros
 
 These macros interpret X and Y as signed registers.
 
 - `ceq x y z`: Branches to Z if X = Y
 - `cgt x y z`: Branches to Z if X > Y. Expands to an awful lot of code; use it sparingly
+- `cle x y z`: Branches to Z if X <= Y. Expands to an awful lot of code; use it sparingly
 
-### Special macros
+##### Special macros
 
 These macros perform miscellaenous specialised actions.
 
@@ -588,7 +595,7 @@ These macros perform miscellaenous specialised actions.
 - `in x`:   Sets X to the value in the serial input register
 - `pin x`:  Waits for a character from the serial and sets X to it
 
-### 16-bit helpers
+##### 16-bit helpers
 
 These macros wrap some of the other macros to implement 16-bit operations. That means that some of these macros take _wide_ registers, which are made up of 2-bytes, in big-endian order. These wide registers are referred to as _words_.
 
@@ -598,7 +605,7 @@ These macros wrap some of the other macros to implement 16-bit operations. That 
 - `decw x`:    Subtract one from the word X
 - `addbw x y`: Add the normal register X to the word Y; stores in Y
 
-### Self-modifiers
+##### Self-modifiers
 
 These macros take pointer-type operands, implementing indirect addressing.
 
@@ -606,30 +613,48 @@ They are usually quite slow and expand to a lot of code, so use them sparingly.
 
 - `jtp x`: Jump through pointer X
 - `ld x y`: Copy the value in pointer X to register Y.
+- `ldw x y`: Copy the word in pointer X to wide register Y.
 - `st x y`: Store the value in register X to pointer Y.
 
-### Bitwise macros
+##### Bitwise macros
 
 Currently, only bitwise NOT is supported, as bitwise operations are extremely complicated to implement in SUBLEQ. When other operations are supported, they will likely be the slowest, biggest macros in the standard library.
 
 - `not x y`: Store the bitwise NOT of X in Y (Y can be the same as X)
 
-### Constants
+##### Constants
 
 The standard library defines these constants:
 
 - `in`: The serial input register, `0xffff`
 - `out`: The serial output register, `0xfffe`
 - `halt`: The machine shutdown address, `0xfffe`
-- `freeze`: Jumps here enter an infinite loop. The value is not fixed.
+- `freeze`: Jump here enter an infinite loop. The value is not fixed.
 - `_`: This is a register conventionally used for results that will be discarded. For example, you can use `pin _` to pause for input, but discard the key.
+
+#### `stdhex`
+
+The module requires `stdilb`.
+
+`stdhex` implements conversion macros for hexadecimal. This module currently employs a very large (1K) lookup table to assist in these conversions, so you should be aware of this before including. These macros are implemented:
+
+- `hex_out x`: Output (to the serial port) the register X
+- `hexw_out x`: Output (to the serial port) the wide register X
+- `from_hex x y z`: Store in Y the byte represented by the two ASCII characters in the wide register X. If the hex is invalid, branches to Z
+
+#### `stdio`
+
+This module requires `stdlib`.
+
+`stdio` implements these high-level I/O macros:
+
+- `print x`: Print the null-terminated string starting at register X
+- `iprint x`: Print the null-terminated string starting at ptr X
+- `gets x`: Read a line of input from the serial port, and store it in the buffer starting at X. This macro is vulnerable to buffer overflows.
+- `gets_t x`: Read a line of input from the serial port, without echoing, and store it in the buffer starting at X. This macro is vulnerable to buffer overflows. This is a variant of `gets x` intended for tape I/O.
 
 ## Undocumented Areas
 
 As S6ASM is still in development, new features are arriving faster than documentation can keep up with. As such, some newer features do remain undocumented for a time; here is a list of those features:
 
 - S6ASM programming conventions
-- New `stdlib` macros: `ldw`
-- New standard library modules:
-    - `stdhex`
-    - `stdio`

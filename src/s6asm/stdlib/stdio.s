@@ -11,6 +11,17 @@ loop:
 done:
   .endmacro
 
+  .macro iprint msg
+    movw msg stdlib_tmpw7
+loop:
+    ld stdlib_tmpw7 stdlib_tmp7  
+    ble stdlib_tmp7 done
+    out stdlib_tmp7
+    incw stdlib_tmpw7
+    jmp loop
+done:
+  .endmacro
+
   ; does NOT and WILL NOT prevent buffer overflows
   .macro gets buf
     lptr buf stdlib_tmpw7
