@@ -41,12 +41,12 @@ start:
   print welcome
 
 readline:
-  out #0x0a
   lptr buf parse
   ble tape not_in_tape
   gets_t buf
   jmp execute
 not_in_tape:
+  out #0x0a
   gets buf
 
 execute:
@@ -124,6 +124,9 @@ begin_tape_read:
   cne c #0x00 fail
   mov #0x01 tape
   print tape_msg
+@wait_for_dot:
+  pin byte
+  cne byte #'.' @wait_for_dot
   jmp readline
 
 return_from_tape:

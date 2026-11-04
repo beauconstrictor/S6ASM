@@ -1,6 +1,6 @@
 .PHONY: run
 run:
-	s6asm -se test.s
+	s6asm -se src/s6asm/monitor.s
 
 .PHONY: install
 install:
