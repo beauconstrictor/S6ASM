@@ -145,5 +145,5 @@ fail_msg:
 tape_msg:
   .asciiz "[ INSERT TAPE ]"
 loaded_msg:
-  .asciiz 0x0a
+  .byte 0x0a
   .asciiz "LOADED."
