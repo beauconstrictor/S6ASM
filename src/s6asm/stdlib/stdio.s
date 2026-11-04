@@ -35,8 +35,22 @@ done:
     st #0 stdlib_tmpw7
   .endmacro
 
-  ; write a single byte from ptr x into y and increment x
-  .macro readc x y
-    ld x y
-    incw x
+  ; does NOT and WILL NOT prevent buffer overflows
+  ; for reading from tapes. does not output anything while typing
+  ; or allow support backspacing
+  .macro gets_t buf
+    lptr buf stdlib_tmpw7
+loop:
+    pin stdlib_tmp7
+    ceq stdlib_tmp7 #0x0a done
+    st stdlib_tmp7 stdlib_tmpw7
+    incw stdlib_tmpw7
+    jmp loop
+    jmp done
+bksp:
+    decw stdlib_tmpw7
+    ; TODO: you can backspace past the start of the buffer
+    jmp loop
+done:
+    st #0 stdlib_tmpw7
   .endmacro

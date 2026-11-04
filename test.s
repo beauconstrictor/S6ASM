@@ -13,6 +13,8 @@
   ; - if a space, skip to next char
   ; - if a null, read a new line
   ; - if a ':', read 4 chars as hex to set addr
+  ; - if a t, print tape message and set tape to 0x01 (disables output)
+  ; - if a r, set tape to 0x00 (enables output)
   ;   if a >, read 4 chars as hex and TODO
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
@@ -25,6 +27,7 @@
   .res 2 parse
   .res 2 addr
   .res 1 byte
+  .res 1 tape
   .res 2 c
 
   .macro readc x y
@@ -34,12 +37,17 @@
 
 start:
   lptr 0x1000 addr
+  mov 0x00 tape
   print welcome
 
 readline:
   out #0x0a
-  gets buf
   lptr buf parse
+  ble tape not_in_tape
+  gets_t buf
+  jmp execute
+not_in_tape:
+  gets buf
 
 execute:
   readc parse c
@@ -50,6 +58,8 @@ execute:
   ceq c #'!' @jump_to
   ceq c #'/' @read_addr
   ceq c #':' @goto
+  ceq c #'t' @begin_tape_read
+  ceq c #'r' @return_from_tape
   ceq c #0x00 readline
 
 ; falls through to here
@@ -67,15 +77,15 @@ execute:
 @read_byte:
   ld addr byte
   hex_out byte
-  out #0x20
   incw addr
+  out #0x20
   jmp execute
 
 @read_ascii:
   ld addr byte
   out byte
-  out #0x20
   incw addr
+  out #0x20
   jmp execute
 
 @jump_to:
@@ -95,6 +105,16 @@ execute:
   from_hex c (addr 1 +) @fail
   jmp execute
 
+@begin_tape_read:
+  mov #0x01 tape
+  print tape_msg
+  jmp execute
+
+@return_from_tape:
+   mov #0x00 tape
+   print loaded_msg
+   jmp readline
+
 welcome:
   .string "S6MON v0.1.0"
   .word 0x0a0a
@@ -103,3 +123,7 @@ welcome:
 fail_msg:
   .string "SORRY?"
   .byte 0x00
+tape_msg:
+  .asciiz "[ INSERT TAPE ]"
+loaded_msg:
+  .asciiz "LOADED."
