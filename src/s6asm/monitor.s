@@ -14,7 +14,7 @@
   ; - if a null, read a new line
   ; - if a ':', read 4 chars as hex to set addr
   ; - if a l, ensure they typed 'load' and set tape to 0x01
-  ; - if a r, set tape to 0x00
+  ; - if a T, set tape to 0x00
   ; - if a >, read 4 chars as hex and dump the addresses to the value, exclusive, leaving addr as the value
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
@@ -63,7 +63,7 @@ execute:
   ceq c #'/' read_addr
   ceq c #':' goto
   ceq c #'l' begin_tape_read
-  ceq c #'r' return_from_tape
+  ceq c #'T' return_from_tape
   ceq c #'>' dump
   ceq c #0x00 readline
 
@@ -131,7 +131,7 @@ begin_tape_read:
   print tape_msg
 @wait_for_dot:
   pin byte
-  cne byte #'.' @wait_for_dot
+  cne byte #'T' @wait_for_dot
   print loading_msg
   jmp readline
 
