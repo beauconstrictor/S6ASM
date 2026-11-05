@@ -21,6 +21,10 @@
   ; words only start needing to be used at layer 7 and beyond
   .res 2 stdlib_tmpw7
 
+  ; stack pointer, in case using stdstack (could go in stdstack.s,
+  ; but would then be allocated to bank 0x0000)
+  .res 2 sp
+
   ; useless register for user programs
   .res 2 _
 
@@ -295,6 +299,13 @@ done:
     ld stdlib_tmpw7 (y 1 +)
   .endmacro
 
+  .macro stw x y
+    st x y
+    movw x stdlib_tmpw7
+    incw stdlib_tmpw7
+    st (x 1 +) stdlib_tmpw7
+  .endmacro
+
   ; BITWISE OPERATIONS
  
   ; invert x and store in y (can be x again)
@@ -326,6 +337,8 @@ done:
   clear            (st 13 +)
   mov  #0x7f       (st 14 +)
   clear            (st 15 +)
+
+  lptr 0x7eff sp
 
   jmp _start
 
