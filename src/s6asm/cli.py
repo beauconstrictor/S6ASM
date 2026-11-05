@@ -17,7 +17,7 @@ from .serial import init_term, restore_term, readc
 GOTO_TAPE = "\x14" # <c-t>
 
 def select_tape(emu: Emulator) -> None:
-    print("\033[?1049h\033[H", end="")
+    print("\0337\033[?1049h\033[H", end="")
     stdout.flush()
 
     print("S6ASM TAPE MANAGER")
@@ -56,7 +56,7 @@ def select_tape(emu: Emulator) -> None:
         case _:
             return select_tape(emu)
 
-    print("\033[?1049l", end="")
+    print("\033[?1049l\0338", end="")
     stdout.flush()
 
 def emulate(binary: bytearray) -> None:

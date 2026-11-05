@@ -6,10 +6,11 @@
   .res 1 c
 
   mov #26 i
-  mov #'A' c
+  mov #'a' c
 
 loop:
   out c
   inc c
-  dbgt c loop
+  dbgt i loop
+  out #0x0a
   jmp 0x8000

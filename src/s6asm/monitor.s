@@ -6,7 +6,7 @@
   ; 
   ; read a char and then:
   ; - if a ?, print in hex the byte at addr and increment addr
-  ; - if a a, print in ascii the byte at addr and increment addr
+  ; - if a ~, print in ascii the byte at addr and increment addr
   ; - if a !, jmp to addr
   ; - if a ., halt
   ; - if a /, print the addr as hex
@@ -15,7 +15,7 @@
   ; - if a ':', read 4 chars as hex to set addr
   ; - if a l, ensure they typed 'load' and set tape to 0x01
   ; - if a r, set tape to 0x00
-  ;   if a >, read 4 chars as hex and dump the address from current addr until < target
+  ; - if a >, read 4 chars as hex and dump the addresses to the value, exclusive, leaving addr as the value
   ; - otherwise, read 2 chars and write them to addr, then increment addr
   ; then, repeat.
   
@@ -58,7 +58,7 @@ execute:
   ceq c #'.' halt
   ceq c #0x20 execute
   ceq c #'?' read_byte
-  ceq c #'a' read_ascii
+  ceq c #'~' read_ascii
   ceq c #'!' jump_to
   ceq c #'/' read_addr
   ceq c #':' goto
