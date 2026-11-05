@@ -121,11 +121,11 @@ def as_tape(source: str, path: str="<unknown>") -> Iterator[str]:
 
     binary = assemble(source, path)
 
-    yield ".\n"
+    yield "T"
 
     for i, byte in enumerate(binary):
         if i % 16 == 0:
             yield f"\n:{origin+i:04x}"
         yield f"{byte:02x}"
 
-    yield "\nr\n"
+    yield "\nT\n"
