@@ -27,3 +27,16 @@
     pull x (y 1 +)
     pull x y
   .endmacro
+
+  ; call subroutine at label x
+  .macro call x
+    lptr return stdlib_tmpw7
+    pushw return sp
+    jmp x
+return:
+  .endmacro
+
+  .macro ret
+    pullw sp stdlib_tmpw7
+    jtp stdlib_tmpw7
+  .endmacro
