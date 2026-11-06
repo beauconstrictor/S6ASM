@@ -37,3 +37,4 @@
   ; printable
   .const SPACE 32
   .const QUOTE 39
+  .const SEMICOLON 59
