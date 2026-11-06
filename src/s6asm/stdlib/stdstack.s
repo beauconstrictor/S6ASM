@@ -1,6 +1,8 @@
   .require <stdlib>
 
-  ; stdstacks grow downwards.
+  ; semantics:
+  ; - stdstacks grow downwards.
+  ; - these macros happily accept underflows and overflows.
 
   ; store x into ptr y, then decrement y
   .macro push x y
@@ -10,18 +12,18 @@
 
   ; increment y, load from ptr y into x
   .macro pull x y
-    incw y
+    incw x
     ld x y
   .endmacro
 
   ; store word x into ptr y, then decrement y
   .macro pushw x y
-    stw x y
-    sub #2 y
+    push x y
+    push (x 1 +) y
   .endmacro
 
   ; increment y, load from ptr y into word x
   .macro pullw x y
-    sub #-2 y
-    ldw x y
+    pull x (y 1 +)
+    pull x y
   .endmacro

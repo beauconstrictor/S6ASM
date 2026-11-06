@@ -669,3 +669,4 @@ As S6ASM is still in development, new features are arriving faster than document
 
 - S6ASM programming conventions
 - `stdstack` module
+- `stdascii` module
