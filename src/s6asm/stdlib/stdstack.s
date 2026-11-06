@@ -40,3 +40,8 @@ return:
     pullw sp stdlib_tmpw7
     jtp stdlib_tmpw7
   .endmacro
+
+  jmp stdlib_after_ret
+ret:
+  ret
+stdlib_after_ret:
