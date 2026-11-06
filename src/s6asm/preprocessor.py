@@ -266,7 +266,7 @@ def find_labels(tokens: Iterable[Token]) -> dict[str, int]:
 
     def validate_new_ident(name: str, tok: Token) -> None:
         if name in labels:
-            raise AsmSyntaxError(f"{tok.operands[0]!r} is already defined", tok)
+            raise AsmSyntaxError(f"{name!r} is already defined", tok)
         if name.startswith("#") and tok.path != "immediates":
             raise AsmSyntaxError("identifiers cannot begin with a '#'", tok)
 
