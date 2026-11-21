@@ -1,6 +1,6 @@
 .PHONY: run
 run:
-	s6asm -se src/s6asm/monitor.s
+	s6asm -se cvm.s
 
 .PHONY: install
 install:
