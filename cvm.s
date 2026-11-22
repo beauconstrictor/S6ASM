@@ -84,11 +84,8 @@ func:
   
   jmp @fail
 @call:
-  ld pc word
-  incw pc
-  ld pc (word 1 +)
-  incw pc
   pushw pc sp
+  pullw dsp pc
   call func
   pullw sp pc
   jmp func
