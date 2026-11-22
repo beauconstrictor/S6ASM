@@ -78,9 +78,11 @@ func:
   ld pc byte
   incw pc
   
-  ceq byte #OPCODE_CALL @call
-  ceq byte #OPCODE_IF @if
   ceq byte #OPCODE_RET ret
+  ceq byte #OPCODE_CALL @call
+  ceq byte #OPCODE_PUSH @push
+
+  ceq byte #OPCODE_IF @if
   
   jmp @fail
 @call:
@@ -88,6 +90,11 @@ func:
   pullw dsp pc
   call func
   pullw sp pc
+  jmp func
+@push:
+  ld pc word
+  incw pc
+  pushw word dsp
   jmp func
 @if:
   pullw dsp word3
