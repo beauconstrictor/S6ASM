@@ -42,6 +42,12 @@
 
 start:
   mov 0x07ff dsp
+  print welcome
+@wait:
+  pin buf
+  cne buf #'T' @wait
+  out #LF
+
 load:
   pin buf
 
@@ -119,3 +125,6 @@ func:
 @msg:
   .string "bytecode error"
   .word 0x0a00
+
+welcome:
+  .asciiz "Insert tape."
