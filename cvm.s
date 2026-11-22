@@ -91,7 +91,7 @@ func:
   pushw pc sp
   call func
   pullw sp pc
-  ret
+  jmp func
 @if:
   pullw dsp word3
   pullw dsp word2
@@ -102,12 +102,13 @@ func:
   ceq word #0 @if_false
 
   movw word2 pc
-  jmp if_call
+  jmp @if_call
 @if_false:
   movw word3 pc
 @if_call:
   call func
   pullw sp pc
+  jmp func
 @fail:
   print @msg
   jmp load
