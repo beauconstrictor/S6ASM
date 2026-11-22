@@ -79,7 +79,7 @@ load:
   .string "parse error"
   .word 0x0a00
 
-; execute a  
+; execute a bytecode function
 func:
   ld pc byte
   incw pc
@@ -99,6 +99,7 @@ func:
   jmp func
 @push:
   ld pc word
+  incw pc
   incw pc
   pushw word dsp
   jmp func
