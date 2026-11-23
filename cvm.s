@@ -89,6 +89,7 @@ func:
   ceq byte #OPCODE_PUSH @push
 
   ceq byte #OPCODE_IF @if
+  ceq byte #OPCODE_WHIL @whil
   
   jmp @fail
 @call:
@@ -98,7 +99,7 @@ func:
   pullw sp pc
   jmp func
 @push:
-  ld pc word
+  ldw pc word
   incw pc
   incw pc
   pushw word dsp
@@ -120,6 +121,32 @@ func:
   call func
   pullw sp pc
   jmp func
+@whil:
+  pullw dsp word2
+  pullw dsp word
+
+@whil_loop:
+  pushw word sp
+  pushw word2 sp
+  pushw pc sp
+  movw word pc
+  call func
+  pullw sp pc
+  pullw sp word2
+  pullw sp word
+  pullw dsp byte
+  beq byte func
+
+  pushw word sp
+  pushw word2 sp
+  pushw pc sp
+  movw word2 pc
+  call func
+  pullw sp pc
+  pullw sp word2
+  pullw sp word
+  pullw dsp byte
+  jmp whil_loop
 @fail:
   print @msg
   jmp load
