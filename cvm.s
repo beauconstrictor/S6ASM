@@ -34,10 +34,10 @@
 
   .res 2 buf
   .res 2 pc
-  .res 1 byte
   .res 2 word
   .res 2 word2
   .res 2 word3
+  .res 2 word4
   .res 2 dsp
 
 start:
@@ -90,7 +90,11 @@ func:
 
   ceq byte #OPCODE_IF @if
   ceq byte #OPCODE_WHIL @whil
-  
+ 
+
+  ceq byte #OPCODE_ADD @add
+  ceq byte #OPCODE_sub @sub
+
   jmp @fail
 @call:
   pushw pc sp
@@ -134,8 +138,8 @@ func:
   pullw sp pc
   pullw sp word2
   pullw sp word
-  pullw dsp byte
-  beq byte func
+  pullw dsp word4
+  beq word4 func
 
   pushw word sp
   pushw word2 sp
@@ -147,6 +151,18 @@ func:
   pullw sp word
   pullw dsp byte
   jmp whil_loop
+@add:
+  pullw dsp word2
+  pullw dsp word
+  add word word2
+  push2 word2 dsp
+  jmp func
+@add:
+  pullw dsp word2
+  pullw dsp word
+  add word word2
+  push2 word2 dsp
+  jmp func
 @fail:
   print @msg
   jmp load
